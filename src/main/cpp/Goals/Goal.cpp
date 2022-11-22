@@ -20,7 +20,7 @@ using namespace std;
 /***************************************************************************************************************/
 /*												Goal														   */
 /***************************************************************************************************************/
-
+//Set data at an index and if the idex doesnt exist add empty values till it does then set data at index
 void Goal::Setdata(int index, double dataVal)
 {
 	if(index >= 0 && index < data.size())
@@ -37,6 +37,7 @@ void Goal::Setdata(int index, double dataVal)
 	}
 }
 
+//copy data to a goal from the start index, used for goal controls
 void Goal::CopyFrom(vector<double> dataIn, int startIndex)
 {
 	for(int i = startIndex; i < dataIn.size() + startIndex; i++)
@@ -45,6 +46,7 @@ void Goal::CopyFrom(vector<double> dataIn, int startIndex)
 	}
 }
 
+//Set data at an index and if the idex doesnt exist add empty values till it does then set data at index
 void Goal::SetStringdata(int index, string dataVal)
 {
 	if(index >= 0 && index < Stringdata.size())
@@ -61,6 +63,7 @@ void Goal::SetStringdata(int index, string dataVal)
 	}
 }
 
+//copy data to a goal from the start index, used for goal controls
 void Goal::CopyStringFrom(vector<string> dataIn, int startIndex)
 {
 	for(int i = startIndex; i < dataIn.size() + startIndex; i++)
@@ -118,6 +121,7 @@ Goal::Goal_Status CompositeGoal::Process(double dTime)
 	}
 }
 
+//Each goal can have an ID, in the config goal controls have an attribute for that and the method grabs a goal with the same ID number
 Goal* CompositeGoal::GetGoal(int IdentityKey)
 {
 	Goal* Selected = nullptr;
@@ -132,6 +136,7 @@ Goal* CompositeGoal::GetGoal(int IdentityKey)
 	return Selected;
 }
 
+//Each goal can have an ID, in the config goal controls have an attribute for that and the method checks for a goal with the same ID number
 bool CompositeGoal::HasGoal(int IdentityKey)
 {
 	bool Selected = false;
@@ -146,6 +151,7 @@ bool CompositeGoal::HasGoal(int IdentityKey)
 	return Selected;
 }
 
+//Each goal can have an ID, in the config goal controls have an attribute for that and the method removes a goal with the same ID number
 bool CompositeGoal::RemoveGoal(int IdentityKey)
 {
 	bool removed = false;
@@ -162,6 +168,7 @@ bool CompositeGoal::RemoveGoal(int IdentityKey)
 	return removed;
 }
 
+//Each goal can have an ID, in the config goal controls have an attribute for that and the method replaces a goal with the same ID number with a new goal
 bool CompositeGoal::ReplaceGoal(int IdentityKey, Goal* NewGoal)
 {
 	bool removed = false;
@@ -179,6 +186,55 @@ bool CompositeGoal::ReplaceGoal(int IdentityKey, Goal* NewGoal)
 	return removed;
 }
 
+//Removes the next goal in the composite goal and can be called from a goal inside this composite goal
+bool CompositeGoal::RemoveNextGoal()
+{
+	bool removed = false;
+	if(m_SubGoals.size() > 1)
+	{
+		m_SubGoals.at(1)->Terminate();
+		delete m_SubGoals.at(1);
+		m_SubGoals.erase(m_SubGoals.begin() + 1);
+		removed = true;
+	}
+	return removed;
+}
+
+//Adds a new goal as the next goal in the composite goal and can be called from a goal inside this composite goal
+bool CompositeGoal::AddNextGoal(Goal* NewGoal)
+{
+	bool Added = false;
+	if(m_SubGoals.size() > 1)
+		m_SubGoals.insert(m_SubGoals.begin() + 1, NewGoal);
+	else
+		m_SubGoals.push_back(NewGoal);
+	Added = true;
+	return Added;
+}
+
+//Removes goals of type or not of type excluding current goal
+template <typename T>
+bool CompositeGoal::RemoveGoalOfType(Goal* Current, T Type, bool ExcludeType)
+{
+	int PrevId = Current->IdentityKey;
+	Current->IdentityKey = -500;
+	bool removed = false;
+	for(int i = 0; i < m_SubGoals.size(); i++)
+	{
+		if(m_SubGoals.at(i)->IdentityKey >= 0)
+		{
+			if(ExcludeType ? !dynamic_cast<T*>(m_SubGoals.at(i)) : dynamic_cast<T*>(m_SubGoals.at(i)))
+			{
+				m_SubGoals.at(i)->Terminate();
+				delete m_SubGoals.at(i);
+				m_SubGoals.erase(m_SubGoals.begin() + i);
+				removed = true;
+			}
+		}
+	}
+	Current->IdentityKey = PrevId;
+	return removed;
+}
 
 void CompositeGoal::Terminate()
 {
@@ -259,6 +315,7 @@ Goal::Goal_Status MultitaskGoal::Process(double dTime_s)
 	return status;
 }
 
+//Each goal can have an ID, in the config goal controls have an attribute for that and the method grabs a goal with the same ID number
 Goal* MultitaskGoal::GetGoal(int IdentityKey)
 {
 	Goal* Selected = nullptr;
@@ -273,6 +330,7 @@ Goal* MultitaskGoal::GetGoal(int IdentityKey)
 	return Selected;
 }
 
+//Each goal can have an ID, in the config goal controls have an attribute for that and the method checks for a goal with the same ID number
 bool MultitaskGoal::HasGoal(int IdentityKey)
 {
 	bool Selected = false;
@@ -287,6 +345,7 @@ bool MultitaskGoal::HasGoal(int IdentityKey)
 	return Selected;
 }
 
+//Each goal can have an ID, in the config goal controls have an attribute for that and the method removes a goal with the same ID number
 bool MultitaskGoal::RemoveGoal(int IdentityKey)
 {
 	bool removed = false;
@@ -303,6 +362,7 @@ bool MultitaskGoal::RemoveGoal(int IdentityKey)
 	return removed;
 }
 
+//Each goal can have an ID, in the config goal controls have an attribute for that and the method replaces a goal with the same ID number with a new goal
 bool MultitaskGoal::ReplaceGoal(int IdentityKey, Goal* NewGoal)
 {
 	bool removed = false;
@@ -317,6 +377,46 @@ bool MultitaskGoal::ReplaceGoal(int IdentityKey, Goal* NewGoal)
 			removed = true;
 		}
 	}
+	return removed;
+}
+
+//Cant remove next goal in multitask goal because there is no next goal in multitask goal
+bool MultitaskGoal::RemoveNextGoal()
+{
+	bool removed = false;
+	return removed;
+}
+
+//Adds a new goal to the multitask goal
+bool MultitaskGoal::AddNextGoal(Goal* NewGoal)
+{
+	bool Added = false;
+	m_GoalsToProcess.push_back(NewGoal);
+	Added = true;
+	return Added;
+}
+
+//Removes goals of type or not of type excluding current goal
+template <typename T>
+bool MultitaskGoal::RemoveGoalOfType(Goal* Current, T Type, bool ExcludeType)
+{
+	int PrevId = Current->IdentityKey;
+	Current->IdentityKey = -500;
+	bool removed = false;
+	for(int i = 0; i < m_GoalsToProcess.size(); i++)
+	{
+		if(m_GoalsToProcess.at(i)->IdentityKey >= 0)
+		{
+			if(ExcludeType ? !dynamic_cast<T*>(m_GoalsToProcess.at(i)) : dynamic_cast<T*>(m_GoalsToProcess.at(i)))
+			{
+				m_GoalsToProcess.at(i)->Terminate();
+				delete m_GoalsToProcess.at(i);
+				m_GoalsToProcess.erase(m_GoalsToProcess.begin() + i);
+				removed = true;
+			}
+		}
+	}
+	Current->IdentityKey = PrevId;
 	return removed;
 }
 

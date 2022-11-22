@@ -32,27 +32,34 @@ GoalAxisControl::GoalAxisControl(Joystick *_joy, string _name, vector<int> Axis,
 
 double GoalAxisControl::Update(double _dTime)
 {
-    bool Out = false;
-    double Average = 0;
+    m_current = 0;
     m_AxisVals.clear();
 
     for(int i = 0; i < m_Axis.size(); i++)
     {
-        m_AxisVals.push_back((m_Axis[i] >= 0 ? 1 : -1) * joy->GetRawAxis(abs(m_Axis[i])) * Mult);
-        Average += joy->GetRawAxis(m_Axis[i]);
+        m_current += joy->GetRawAxis(m_Axis[i]);
         if(abs(joy->GetRawAxis(m_Axis[i])) > DeadZ)
         {
-            Out = true;
+            m_AxisVals.push_back((m_Axis[i] >= 0 ? 1 : -1) * GetAxis(vector<int> {m_Axis[i]}).at(0) * Mult);
+        }
+        else
+        {
+            m_AxisVals.push_back(0);
         }
     }
-    Average /= m_Axis.size();
-    
-    if(Out)
+    m_current /= m_Axis.size();
+
+    if(m_current != m_previous)
     {
+        m_previous = m_current;
         ValueChanged(new LEventArgs<vector<double>, vector<string>, GoalAxisControl*>(m_AxisVals, m_StringVals, this));
     }
+    if(PrintOut)
+	{
+		Log::General("````````````````````````````" + name + " value: " + to_string(m_current));
+	}
     
-    return Average;
+    return m_current;
 }
 
 GoalAxisControl::~GoalAxisControl() {}

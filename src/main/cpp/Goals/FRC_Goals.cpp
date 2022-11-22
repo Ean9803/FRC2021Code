@@ -184,6 +184,104 @@ void Goal_ControllerOverride::SetCallbacks(bool bind)
 }
 #pragma endregion
 
+/**********************ResetSwerveDrive*************************/
+
+void ResetSwerveDrive::Activate()
+{
+    ManagerDT =  (SwerveManager*)ActiveCol->Get(GetStringData(0));
+    if(ManagerDT != nullptr)
+    {
+        Log::General("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@Reset Swerve Drive@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+        ManagerDT->ResetSwivelEnc();
+        ActiveCol->GetNavX()->ResetNav();
+    }
+    else
+    {
+        Log::General("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Cannot find SwerveManger!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    }
+    m_Status = eCompleted;
+}
+
+Goal::Goal_Status ResetSwerveDrive::Process(double dTime)
+{
+    return m_Status = eCompleted;
+}
+
+void ResetSwerveDrive::Terminate()
+{
+    m_Status = eCompleted;
+}
+
+/**********************Goal_StopAllMotors*************************/
+
+void Goal_StopAllMotors::Activate()
+{
+    for(int i = 0; i < (int)Stringdata.size(); i++)
+    {
+        Motor* Sub = ActiveCol->GetMotor(GetStringData(i));
+        if(Sub != nullptr)
+        {
+            Log::General("~~~~~~~~~~~~~Stopping Motor: " + GetStringData(i));
+            Sub->Stop();
+        }
+    }
+    ActiveCol->EnableAllControlsExcept(vector<string>{});
+    Log::General("Stopped given motors");
+    m_Status = eCompleted;
+}
+
+Goal::Goal_Status Goal_StopAllMotors::Process(double dTime)
+{
+    return m_Status = eCompleted;
+}
+
+void Goal_StopAllMotors::Terminate()
+{
+    m_Status = eCompleted;
+}
+
+/**********************Goal_SetControl*************************/
+
+void Goal_SetControl::Activate()
+{
+    m_Status = eActive;
+}
+
+Goal::Goal_Status Goal_SetControl::Process(double dTime)
+{
+    
+    if(isDriver)
+        ActiveCol->GetDriverControl(NameCont)->FeedIn(dTime, Vals);
+    else
+        ActiveCol->GetOperatorControl(NameCont)->FeedIn(dTime, Vals);
+    
+    return m_Status = eCompleted;
+}
+
+void Goal_SetControl::Terminate()
+{
+    m_Status = eCompleted;
+}
+
+/**********************Goal_SetComponent*************************/
+
+void Goal_SetComponent::Activate()
+{
+    m_Status = eActive;
+}
+
+Goal::Goal_Status Goal_SetComponent::Process(double dTime)
+{
+    ActiveCol->GetOutput(NameCont)->Set(Vals);
+    ActiveCol->GetOutput(NameCont)->UpdateComponent();
+
+    return m_Status = eCompleted;
+}
+
+void Goal_SetComponent::Terminate()
+{
+    m_Status = eCompleted;
+}
 
 #pragma region FeedbackLoopGoals
 
@@ -232,7 +330,6 @@ void Goal_REVColorSensorV3::Terminate()
 void Goal_MotorPosition::Activate()
 {
     Subject = m_activeCollection->GetMotor(GetStringData(0));
-    Position = (m_activeCollection->GetMotor(GetStringData(0)))->GetEncoder();
     TargetPos += GetData(0);
     m_Status = eActive;
 }
@@ -242,9 +339,8 @@ Goal::Goal_Status Goal_MotorPosition::Process(double dTime)
     if(m_Status == eActive)
     {
         TargetPos += GetData(0);
-        Log::General("----------------------------Running to target: " + to_string(TargetPos) + " --Current: " + to_string(Position->Get()) + "--------");
-        Subject->SetPosition(TargetPos, Position->Get(), dTime);
-        if(Subject->GetPositionProfile()->Inrange(TargetPos, Position->Get(), 0.01))
+        //Log::General("----------------------------Rate: " + to_string(GetData(0)) + " --Running to target: " + to_string(TargetPos) + " --Current: " + to_string(Subject->GetEncoder()->Get()) + "--------");
+        if(Subject->SetToPosition(TargetPos, dTime))
             m_Status = eCompleted;
     }
     return m_Status;
@@ -328,18 +424,102 @@ void Goal_Intake::Terminate()
     m_Status = eInactive;
 }
 
+
+/**********************Goal_ButtonMove*************************/
+
+void Goal_ButtonMove::Activate()
+{
+    enc0 ->GetEncoder()->Reset();
+    navx = ActiveCol->GetNavX();
+	navx -> Reset();
+    m_Status = eActive;
+    Moving = true;
+    Done = false;
+    TimePassed = 0;
+    NumberAtTarget = 0;
+    Log::General("-------------------Distance to: " + to_string(GetStringDataAsDouble(0)));
+}
+
+Goal::Goal_Status Goal_ButtonMove::Process(double dTime)
+{
+   if(!Done && m_Status == eActive)
+    {
+       {
+       if(NumberAtTarget < 5 && TimePassed < GetStringDataAsDouble(1) && (GetStringDataAsDouble(0)) != 0)
+    	{
+            enc = (enc0->GetEncoder()->Get());
+            currentValue = navx->GetNavXAngle(); //get new navx angle
+    		//Angle PID
+	    	double Error = abs(currentValue);
+            double Result = ActiveCol->GetPIDProfile(ActiveCol->GetConfigVariable("CorrectionPID")->StringValue())->Calculate(0, Error, dTime);
+            //Distance PID
+    		double ErrorE = GetStringDataAsDouble(0) - enc;
+            double ResultE = ActiveCol->GetPIDProfile(ActiveCol->GetConfigVariable("DrivePID")->StringValue())->Calculate(abs(GetStringDataAsDouble(0)), abs(enc), dTime);
+            Log::General("Error: " + to_string(ErrorE) + " | Dist: " + to_string(GetStringDataAsDouble(0)) + " | ResultE: " + to_string(ResultE));
+	    	if(Inrange(0, ErrorE, 0.5))
+            {
+                NumberAtTarget++;
+	    	}
+            bool IsNegative = GetStringDataAsDouble(0) < 0;
+            ActiveCol->GetDriverControl(ActiveCol->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(dTime, vector<double> {(ResultE + Result) * (IsNegative ? -1 : 1)});
+            ActiveCol->GetDriverControl(ActiveCol->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(dTime, vector<double> {(ResultE - Result) * (IsNegative ? -1 : 1)});
+            TimePassed += dTime;
+        }
+        else if(GetStringDataAsDouble(1) <= TimePassed)
+        {
+            Done = true;
+            Moving = true;
+        }
+        else
+        {
+            Done = true;
+            Moving = false;
+        }
+       }
+    }
+    else
+    {
+        ActiveCol->GetDriverControl(ActiveCol->GetConfigVariable("LeftDTControl")->StringValue())->Enable();
+        ActiveCol->GetDriverControl(ActiveCol->GetConfigVariable("RightDTControl")->StringValue())->Enable();
+    }
+    if(!Done && Moving)
+    {
+        return m_Status = eActive;
+    }
+    else if(Done && !Moving)
+    {
+        ActiveCol->GetDriverControl(ActiveCol->GetConfigVariable("LeftDTControl")->StringValue())->Enable();
+        ActiveCol->GetDriverControl(ActiveCol->GetConfigVariable("RightDTControl")->StringValue())->Enable();
+        return m_Status = eCompleted;
+    }
+    else
+    {
+        ActiveCol->GetDriverControl(ActiveCol->GetConfigVariable("LeftDTControl")->StringValue())->Enable();
+        ActiveCol->GetDriverControl(ActiveCol->GetConfigVariable("RightDTControl")->StringValue())->Enable();
+        return m_Status = eCompleted;
+    }
+}
+
+void Goal_ButtonMove::Terminate()
+{
+    m_Status = eCompleted;
+    ActiveCol->GetDriverControl(ActiveCol->GetConfigVariable("LeftDTControl")->StringValue())->Enable();
+    ActiveCol->GetDriverControl(ActiveCol->GetConfigVariable("RightDTControl")->StringValue())->Enable();    
+    Log::General("Done Moving");
+}
+
 /************************Goal_MoveForward*************************/
 
 void Goal_MoveForward::Activate()
 {
-    enc0 -> Reset();
+    enc0 ->GetEncoder()->Reset();
     navx = m_activeCollection->GetNavX();
 	navx -> Reset();
     m_Status = eActive;
     Moving = true;
     Bias = (5000);
     BiasE = (100);
-    Log::General("Distance to: " + to_string(distTo));
+    Log::General("-------------------Distance to: " + to_string(distTo));
 }
 
 Goal::Goal_Status Goal_MoveForward::Process(double dTime)
@@ -347,24 +527,23 @@ Goal::Goal_Status Goal_MoveForward::Process(double dTime)
     if(!Done && m_Status == eActive)
     {
        {
-       if(NumberAtTarget < 1 && TimePassed < TotalTime && (distTo != 0))
+       if(NumberAtTarget < 5 && TimePassed < TotalTime && (distTo != 0))
     	{
-            enc = (enc0->GetEncoderValue());
+            enc = (enc0->GetEncoder()->Get());
             currentValue = navx->GetNavXAngle(); //get new navx angle
     		//Angle PID
-	    	double Error = currentValue;
-            double Result = PIDCal(P, I, D, totalE, Error, PrevE, dTime, 0.5, 0.1, Pevpower, Bias);
+	    	double Error = abs(currentValue);
+            double Result = m_activeCollection->GetPIDProfile(m_activeCollection->GetConfigVariable("CorrectionPID")->StringValue())->Calculate(0, Error, dTime);
             //Distance PID
     		double ErrorE = distTo - enc;
-            double ResultE = PIDCal(PE, IE, DE, totalEncoder, ErrorE, PrevEncoder, dTime, MaxPower, Limit, PrevEResult, BiasE - (SBias - 1), ErrorTo, distTo) * (IsNegative ? -3 : 3);
-            //Log::General("Error: " + to_string(ErrorE) + " | Dist: " + to_string(distTo));
-	    	if(Inrange(0, ErrorE, 0.05))
+            double ResultE = m_activeCollection->GetPIDProfile(m_activeCollection->GetConfigVariable("DrivePID")->StringValue())->Calculate(abs(distTo), abs(enc), dTime);
+            Log::General("Error: " + to_string(ErrorE) + " | Dist: " + to_string(distTo) + " | ResultE: " + to_string(ResultE));
+	    	if(Inrange(0, ErrorE, 0.5))
             {
                 NumberAtTarget++;
 	    	}
-
-            SetNeoDrive((Result + ResultE), (Result - ResultE), m_activeCollection); //set drive to new powers
-            
+            m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(dTime, vector<double> {(ResultE + Result) * (IsNegative ? -1 : 1)});
+            m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(dTime, vector<double> {(ResultE - Result) * (IsNegative ? -1 : 1)});
             TimePassed += dTime;
         }
         else if(TotalTime <= TimePassed)
@@ -381,8 +560,8 @@ Goal::Goal_Status Goal_MoveForward::Process(double dTime)
     }
     else
     {
-        //StopDrive(m_activeCollection);
-    	StopNeoDrive(m_activeCollection); //once finished, stop drive
+        m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
+        m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
     }
     if(!Done && Moving)
          return m_Status = eActive;
@@ -396,8 +575,9 @@ Goal::Goal_Status Goal_MoveForward::Process(double dTime)
 void Goal_MoveForward::Terminate()
 {
     m_Status = eCompleted;
-    //StopDrive(m_activeCollection);
-    StopNeoDrive(m_activeCollection);
+    m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(0.01, vector<double> {0});
+    m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(0.01, vector<double> {0});
+    
     Log::General("Done Moving");
 }
 
@@ -417,7 +597,7 @@ void Goal_TurnPIDF::Activate()
 void Goal_TurnPIDF::SetTarget(double Angle, double TotalT)
 {
     IsNegative = Angle < 0;
-    RealTarget = ABSValue(Angle);
+    RealTarget = (Angle);
     TotalTime = TotalT;
 }
 
@@ -425,19 +605,22 @@ Goal::Goal_Status Goal_TurnPIDF::Process(double dTime)
 {
     if(!Done && m_Status == eActive)
     {
-       if(NumberAtTarget < 2 && TimePassed < TotalTime && (RealTarget != 0))
+       if(NumberAtTarget < 10 && TimePassed < TotalTime && (RealTarget != 0))
     	{
             double AngleNavX = (double)navx->GetNavXAngle();
     		currentValue = ABSValue(AngleNavX); //get new navx angle
     		//Angle PIDF
-	    	double Error = RealTarget - currentValue;
-            double Result = (0.025 * (IsNegative ? 1 : -1)) + (PIDCal(P, I, D, totalE, Error, PrevE, dTime, MaxPower, Limit, Pevpower, Bias, ErrorTo, RealTarget) * (IsNegative ? 1 : -1) * (SBias + 2));
-            //Log::General("Error: " + to_string(Error));
+	    	double Error = RealTarget - AngleNavX;
+            double Result = (m_activeCollection->GetPIDProfile(m_activeCollection->GetConfigVariable("TurnPID")->StringValue())->Calculate((RealTarget), (AngleNavX), dTime));
+            //double Result = (0.025 * (IsNegative ? 1 : -1)) + (PIDCal(P, I, D, totalE, Error, PrevE, dTime, MaxPower, Limit, Pevpower, Bias, ErrorTo, RealTarget) * (IsNegative ? 1 : -1) * (SBias + 2));
+            Log::General("Error: " + to_string(Error));
             if(Inrange(0, Error, 3))
             {
 		    	NumberAtTarget++;
 	    	}
-            SetNeoDrive(Result, Result, m_activeCollection); //set drive to new powers
+            m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(dTime, vector<double> {Result/* * (IsNegative ? -1 : 1)*/});
+            m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(dTime, vector<double> {-Result/* * (IsNegative ? -1 : 1)*/});
+            //SetNeoDrive(Result, Result, m_activeCollection); //set drive to new powers
             TimePassed += dTime;
         }
         else if(TotalTime <= TimePassed)
@@ -450,18 +633,22 @@ Goal::Goal_Status Goal_TurnPIDF::Process(double dTime)
             Done = true;
             Moving = false;
         }
-    
     }
     else
     {
+        m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
+        m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
+            
         //StopDrive(m_activeCollection);
-    	StopNeoDrive(m_activeCollection); //once finished, stop drive
+    	//StopNeoDrive(m_activeCollection); //once finished, stop drive
     }
     if(!Done && Moving)
         return m_Status = eActive;
     else if(Done && !Moving)
     {
         Log::General("Time out on Gyro at Angle: " + to_string(navx->GetNavXAngle()) + "| with a target of: " + to_string(RealTarget));
+        m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
+        m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
         return m_Status = eCompleted;
     }
     else
@@ -481,11 +668,15 @@ Goal::Goal_Status Goal_TurnPIDF::Process(double dTime)
         else if(TotalTime != 0 && Attempts >= 1)
         {
             Log::Error("Too many attempts to turn to: " + to_string(RealTarget));
+            m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
+            m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
             return m_Status = eFailed;
         }
         else
         {
             Log::General("Skipping Due to Angle near or at zero!");
+            m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
+            m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
             return m_Status = eCompleted;
         }
     }
@@ -495,7 +686,9 @@ void Goal_TurnPIDF::Terminate()
 {
     m_Status = eCompleted;
     //StopDrive(m_activeCollection);
-    StopNeoDrive(m_activeCollection);
+    m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(0.01, vector<double> {0});
+    m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(0.01, vector<double> {0});
+    //StopNeoDrive(m_activeCollection);
     Log::General("Done Moving");
 }
 
@@ -579,102 +772,57 @@ void Goal_SwerveCord::Terminate()
 
 /********************Goal_CurvePath******************/
 
-void Goal_CurvePath::GetLastData()
-{
-    if (Goal_CurvePath::HasData(0))
-    {
-        totalEncoder = Goal_CurvePath::GetData(0);
-    }
-    if (Goal_CurvePath::HasData(1))
-    {
-        PrevEncoder = Goal_CurvePath::GetData(1);
-    }
-    if (Goal_CurvePath::HasData(2))
-    {
-        PrevEResult = Goal_CurvePath::GetData(2);
-    }
-}
-
-void Goal_CurvePath::SaveData()
-{
-    Goal_CurvePath::Setdata(0, totalEncoder);
-    Goal_CurvePath::Setdata(1, PrevEncoder);
-    Goal_CurvePath::Setdata(2, PrevEResult);
-}
-
 void Goal_CurvePath::Activate()
 {
-    Goal_CurvePath::GetLastData();
-
-    encL -> Reset();
-    encR -> Reset();
+    encL->GetEncoder()->Reset();
+    encR->GetEncoder()->Reset();
     navx->ResetNav();
-    Log::General("Left: " + to_string((encL->GetEncoderValue())));
-    Log::General("Right: " + to_string((encR->GetEncoderValue())));
     m_Status = eActive;
     Moving = true;
-    AngleBias = ((P * (AngleTarget))*(1.5 * (1000/AngleTarget)));
-    DistBias = ((P * DistBias) * 10);
-    Dist = ((ABSValue(AngleTarget) * 3.1415) / 180) * (ABSValue(Radi)) * DistMulit;
+    
+    TotalDistance = (abs(AngleTarget) / 360) * (abs(RadiusTarget) * 2 * 3.1415);
+    double LeftDist = (abs(AngleTarget) / 360) * ((abs(RadiusTarget) + (Base / 2)) * 2 * 3.1415);
+    double RightDist = (abs(AngleTarget) / 360) * ((abs(RadiusTarget) - (Base / 2)) * 2 * 3.1415);
+
+    if(LeftDist > RightDist)
+    {
+        RightBias = RightDist / LeftDist;
+    }
+    else if(LeftDist > RightDist)
+    {
+        LeftBias = LeftDist / RightDist;
+    }
 
     if(AngleTarget > 0)
     {
-        LeftSpeed = (((AngleTarget) * 3.1415) / 180) * Constrain(ABSValue(Radi) + (Base / 24), 0, numeric_limits<double>::max());
-        RightSpeed = (((AngleTarget) * 3.1415) / 180) * Constrain(ABSValue(Radi) - (Base / 24), 0, numeric_limits<double>::max());
-    }
-    else
-    {
-        LeftSpeed = (((AngleTarget) * 3.1415) / 180) * Constrain(ABSValue(Radi) - (Base / 24), 0, numeric_limits<double>::max());
-        RightSpeed = (((AngleTarget) * 3.1415) / 180) * Constrain(ABSValue(Radi) + (Base / 24), 0, numeric_limits<double>::max());
-    }
-    
-    if(LeftSpeed >= 1)
-    {
-        LeftSpeed /= 10;
-    }
-    if(RightSpeed >= 1)
-    {
-        RightSpeed /= 10;
+       double Temp = LeftBias;
+       LeftBias = RightBias;
+       RightBias = Temp;
     }
 
-    LeftSpeed /= LeftAdd;
-    RightSpeed /= RightAdd;
-
-    if(LeftSpeed == 0)
-    {
-        RightSpeed *= 10;
-    }
-    else if(RightSpeed == 0)
-    {
-        LeftSpeed *= 10;
-    }
-
-    RightSpeed = ABSValue(RightSpeed);
-    LeftSpeed = ABSValue(LeftSpeed);
-
-    MinPowerL = encL->Get() * 0.01;
-    MinPowerR = encR->Get() * 0.01;
-    Log::General("Distance to travel: " + to_string(Dist) + " | Angle: " + to_string(AngleTarget) + " | Radius: " + to_string(Radi));
+    Log::General("Distance to travel: Angle: " + to_string(AngleTarget) + " | Radius: " + to_string(RadiusTarget));
 }
 
 Goal::Goal_Status Goal_CurvePath::Process(double dTime)
 {
     if(!Done && m_Status == eActive)
     {
-        if(NumberAtTarget < 1 && TimePassed < TotalTime)
+        if(TimeAtTarget < 1 && TimePassed < TotalTime)
         {
-            double DistError = (((((encL->GetEncoderValue() / 5) + ((encR->GetEncoderValue() / 5) * -1)) / 2) - Dist) / Dist);
-            double SpeedCal = -PIDCal(P, I, D, totalEncoder, DistError, PrevEncoder, dTime, 1, Limit, PrevEResult, DistBias, DistError, 1);
-            currentValue = navx->GetNavXAngle(); //get new navx angle
-            ResultRight = (RightSpeed) * SpeedCal;
-            ResultLeft = (LeftSpeed) * SpeedCal;
+            double DistError = (encL->GetEncoder()->GetDistance(WheelRadi) + encR->GetEncoder()->GetDistance(WheelRadi)) / 2;
+            double SpeedCal = m_activeCollection->GetPIDProfile(PIDName)->Calculate(TotalDistance, DistError, dTime);
+            Log::General("-----------" + to_string(TotalDistance) + "----------" + to_string(DistError));
+            //Log::General("---------" + to_string(SpeedCal) + "----" + to_string(m_activeCollection->GetPIDProfile(PIDName)->GetP()) + "----" + to_string(m_activeCollection->GetPIDProfile(PIDName)->GetI()) + "----" + to_string(m_activeCollection->GetPIDProfile(PIDName)->GetD()));
+            double ResultRight = (RightBias) * SpeedCal;
+            double ResultLeft = (LeftBias) * SpeedCal;
             //Log::General("Error Dist: " + to_string(DistError) + " | SpeedCal: " + to_string(SpeedCal) + " | Left: " + to_string(ResultLeft) + " | Right: " + to_string(ResultRight));
-            if(Inrange(0, DistError, 0.09999))
+            if(Inrange(TotalDistance, DistError, m_activeCollection->GetPIDProfile(PIDName)->GetThres() + 0.05))
             {
-                //StopNeoDrive(m_activeCollection);
-                NumberAtTarget++;
+                TimeAtTarget += dTime;
 	    	}
-            SetNeoDrive((ResultLeft), -(ResultRight), m_activeCollection);
+            m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(dTime, vector<double> {ResultLeft});
+            m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(dTime, vector<double> {-ResultRight});
+            //SetNeoDrive((ResultLeft), -(ResultRight), m_activeCollection);
             TimePassed += dTime;
         }
         else if(TotalTime <= TimePassed)
@@ -693,20 +841,25 @@ Goal::Goal_Status Goal_CurvePath::Process(double dTime)
          return m_Status = eActive;
     else if(Done && !Moving)
     {
-        StopNeoDrive(m_activeCollection);
+        m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
+        m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
+        //StopNeoDrive(m_activeCollection);
         return m_Status = eCompleted;
     }
     else
     {
-        StopNeoDrive(m_activeCollection);
+        m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
+        m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(dTime, vector<double> {0});
+        //StopNeoDrive(m_activeCollection);
         return m_Status = eFailed;
     }
 }
 
 void Goal_CurvePath::Terminate()
 {
-    Goal_CurvePath::SaveData();
-    StopNeoDrive(m_activeCollection);
+    m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("LeftDTControl")->StringValue())->FeedIn(0.01, vector<double> {0});
+    m_activeCollection->GetDriverControl(m_activeCollection->GetConfigVariable("RightDTControl")->StringValue())->FeedIn(0.01, vector<double> {0});
+    //StopNeoDrive(m_activeCollection);
     m_Status = eCompleted;
 }
 
@@ -785,11 +938,45 @@ void Goal_LimelightTrack::Terminate()
 /*********************AutoPath-Goal******************/
 void AutoPath::Activate()
 {
+    Log::General("*******************Path Name: " + NamePath + " ********************");
+    
+    if(NamePath == "TestRun")
+    {
+        AddSubgoal(new Goal_MoveForward(m_activeCollection, 1, 1, 5));
+        AddSubgoal(new Goal_TurnPIDF(m_activeCollection, 90, 1, 5));
+        AddSubgoal(new Goal_MoveForward(m_activeCollection, 1, 1, 5));
+        AddSubgoal(new Goal_TurnPIDF(m_activeCollection, 90, 1, 5));
+        
+        //AddSubgoal(new Goal_Wait_ac(m_activeCollection, 0.5));
+        //AddSubgoal(new Goal_TurnPIDF(m_activeCollection, 90, 1, 5));
+        AutoPath::Shoot(true, 10);
+    }
+    else if(NamePath == "Run")
+    {
+        AddSubgoal(new Goal_MoveForward(m_activeCollection, 5, 1, 5));
+    }
+    else if(NamePath == "Shoot")
+    {
+        AddSubgoal(new Goal_MoveForward(m_activeCollection, 4, 1, 5));
+        AddSubgoal(new Goal_TurnPIDF(m_activeCollection, -90, 1, 5));
+        AddSubgoal(new Goal_MoveForward(m_activeCollection, 3, 1, 5));
+        AddSubgoal(new Goal_TurnPIDF(m_activeCollection, -90, 1, 5));
+        
+        AutoPath::Shoot(true, 10);
+    }
+    else if(NamePath == "Pos")
+    {
+        AddSubgoal(new Goal_MoveForward(m_activeCollection, 4, 1, 5));
+        AddSubgoal(new Goal_TurnPIDF(m_activeCollection, -90, 1, 5));
+        AddSubgoal(new Goal_MoveForward(m_activeCollection, 3, 1, 5));
+        AddSubgoal(new Goal_TurnPIDF(m_activeCollection, -90, 1, 5));
+    }
+    /*
     for(int i = 0; i < lenght; i++)
     {
         if (!IsSwerve)
         {
-            AddSubgoal(new Goal_CurvePath(m_activeCollection, 0, Angle[i], Radius[i], 0.8, 10, 10, 10, 23));
+            AddSubgoal(new Goal_CurvePath(m_activeCollection, "WheelLeftT", "WheelRightT", "CurveControl", Angle[i], Radius[i] * Scale, 10, 1, 23));
         }
         else
         {
@@ -822,9 +1009,9 @@ void AutoPath::Activate()
                 Goal_TurnPIDF* Tu = new Goal_TurnPIDF(m_activeCollection, 0, 0.3, 10, 1);
                 AddSubgoal(new Goal_LimelightTrack(m_activeCollection, true, 0.1, Tu, 10));
                 //Add Goals in here
-                //*****************//
+                //*****************
                 
-                //*****************//
+                //*****************
                 AddSubgoal(Tu);
             }
             //Add more cases here
@@ -834,6 +1021,7 @@ void AutoPath::Activate()
     {
         AddSubgoal(new Goal_SwerveCord(m_activeCollection, "SwerveDT", Angle[lenght - 1] * Scale, Radius[lenght - 1] * Scale));
     }
+    */
     m_Status = eActive;
 }
 

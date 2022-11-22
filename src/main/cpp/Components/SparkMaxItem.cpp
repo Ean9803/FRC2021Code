@@ -19,7 +19,7 @@ using namespace frc;
 using namespace Components;
 
 SparkMaxItem::SparkMaxItem() {}
-
+//Constructor used by config
 SparkMaxItem::SparkMaxItem(int _channel, string _name, bool _reversed, bool Real) : Motor(_name, _reversed){
 	channel = _channel;
 	reversed = _reversed;
@@ -35,28 +35,34 @@ SparkMaxItem::SparkMaxItem(int _channel, string _name, bool _reversed, bool Real
 	}
 }
 
+//Returns the current spark max output percent
 double SparkMaxItem::Get(){
     return Max->Get();
 }
 
+//Returns the value of the encoder on the spark max or the linked encoder if one is set in config
 double SparkMaxItem:: GetEncoderValue(){
 	return (UseTable ? OutputTable->GetNumber(name + "-Encoder", 0) : (Max->GetEncoder(rev::CANEncoder::EncoderType::kHallSensor, EncTicks).GetPosition() - Offset));
 }
 
+//Resets the encoder on the spark max
 void SparkMaxItem::Reset(){
 	Offset = Max->GetEncoder(rev::CANEncoder::EncoderType::kHallSensor, EncTicks).GetPosition();
 	if (UseTable)
 		OutputTable->PutBoolean(name + "-Reset", true);
 }
 
+//Get the name of the component
 string SparkMaxItem::GetName(){
 	return Name;
 }
 
+//Returns the direction of the motor when set to a postive value
 int SparkMaxItem::GetPolarity(){
 	return (reversed? -1 : 1);
 }
 
+//Sets the motor power
 void SparkMaxItem::Set(double val){
 	val = CalculateVal(val);
 	// Log::General(Name+" : "  + to_string(val));
@@ -75,15 +81,19 @@ void SparkMaxItem::Set(double val){
 	}
 }
 
+//Stops the motor
 void SparkMaxItem::Stop(){
 	if(!inUse)
 	{
 		inUse = true;
-		Max->StopMotor();
+		SetPercent(0);
 		inUse = false;
 	}
 }
 
+/*
+The delete component is just a way to clean up space (it was used for quickload so we dont get dups of objects)
+*/
 void SparkMaxItem::DeleteComponent()
 {
 	CleanUpProfiles();
@@ -91,17 +101,23 @@ void SparkMaxItem::DeleteComponent()
 	delete this;
 }
 
+//Method that is called by the ActiveCollection
 void SparkMaxItem::UpdateComponent()
 {
 	if (!UseTable)
 	{
 		OutputTable->PutNumber(name + "-Encoder", SparkMaxItem::GetEncoderValue());
 	}
+	if(PrintOut)
+	{
+		Log::General("`````````````````````Motor: " + name + "    Power: " + to_string(SparkMaxItem::Get()) + "   Position: " + to_string(SparkMaxItem::GetEncoderValue()) + " Angle: " + to_string(GetAngle()));
+	}
 }
 
-void SparkMaxItem::ResetEncoderValue(){
+//Resets the encoder
+void SparkMaxItem::ResetEncoderValue()
+{
 	Max->GetEncoder(rev::CANEncoder::EncoderType::kHallSensor, 24).SetPosition(0);
-
 }
 
 void SparkMaxItem::DefaultSet(){

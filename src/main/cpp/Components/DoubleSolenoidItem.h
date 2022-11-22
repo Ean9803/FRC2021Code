@@ -21,11 +21,23 @@ using namespace std;
 namespace Components{
 class DoubleSolenoidItem : public OutputComponent{
 private:
+	//The port in the pcm for forward
 	int forwardChannel;
+	//The port in the pcm for reverse
 	int reverseChannel;
 	DoubleSolenoid::Value _default;
+	DoubleSolenoid::Value _LastState;
+	DoubleSolenoid::Value _CurrentState;
 	bool reversed;
 	DoubleSolenoid *solenoid;
+	//The time that needs to pass before the return value is changed when the given value is >0
+	double TimeExtended = 0;
+	//The time that needs to pass before the return value is changed when the given value is <0
+	double TimeRetracted = 0;
+	//The current time that has passed when the given value is different from tha current value
+	double TimeIn = 0;
+	//When the abs value of the given value is >1 the timer is skipped
+	bool Insta = false;
 
 public:
 	DoubleSolenoidItem();
@@ -36,8 +48,11 @@ public:
 	void SetForward();
 	void SetReverse();
 	void SetOff();
+	void SetTimeTaken(double Time) {TimeExtended = Time;};
+	void SetTimeRetract(double Time) {TimeRetracted = Time;};
 	virtual void Set(double value) override;
 	virtual void DeleteComponent() override;
+	virtual void UpdateComponent() override;
 	virtual double Get() override;
 	DoubleSolenoid::Value GetState();
 	DoubleSolenoid::Value GetDefaultValue();

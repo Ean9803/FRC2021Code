@@ -20,6 +20,9 @@ enum TeleOpGoal{
     eRelativeElevatorControl,
     eShooter,
     eMotorPosition,
+    eResetSwerve,
+    eMove,
+    eAbort,
     eNone
 };
 
@@ -45,5 +48,11 @@ static Goal* SelectTeleOpGoal(ActiveCollection* activeCollection, TeleOpGoal goa
         return new Goal_ShooterBunch(activeCollection, params);
     else if(goalSelected == TeleOpGoal::eMotorPosition)
         return new Goal_MotorPosition(activeCollection);
+    else if(goalSelected == TeleOpGoal::eResetSwerve)
+        return new ResetSwerveDrive(activeCollection);
+    else if(goalSelected == TeleOpGoal::eMove)
+        return new Goal_ButtonMove(activeCollection);
+    else if(goalSelected == TeleOpGoal::eAbort)
+        return new Goal_StopAllMotors(activeCollection);
 	return new Goal_TimeOut(activeCollection, params);
 }

@@ -22,10 +22,30 @@ private:
 	int channel;
 	int initPosition; //this is set on init. Ensures accurate measurement of distance traveled. As long as elevator is all the way down on startup, which it should
 	AnalogPotentiometer *apt;
+	//The max value the pot can reach
+	double ValAngle = 0;
+	//The range the pot has to be from an angle to return true when calling within angle
+	double Threshold = 0;
+	double Distance(double Val, double OtherVal)
+	{
+		return abs((Val) - (OtherVal));
+	};
+	bool Inrange(double Target, double Value, double Thres)
+    {
+	    if(Distance(Value, Target) <= Thres)
+	   	{
+			return true;
+		}
+        return false;
+    };
 
 public:
 	PotentiometerItem();
 	PotentiometerItem(int _channel, string _name, bool Real);
+	double GetAngle();
+	bool WithinAngle(double angle);
+	void SetThreshold(double val) { Threshold = val; };
+	void SetTotalVal(double Val) { ValAngle = Val; };
 	virtual string GetName() override;
 	virtual double Get() override;
 	virtual void DeleteComponent() override;

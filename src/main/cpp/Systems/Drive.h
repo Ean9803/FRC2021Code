@@ -6,8 +6,8 @@ Project:     BroncBotzFRC2019
 Copyright (c) BroncBotz.
 All rights reserved.
 
-Author(s):	Ryan Cooper, Dylan Watson
-Email:	cooper.ryan@centaurisoftware.co, dylantrwatson@gmail.com
+Author(s):	Ryan Cooper, Dylan Watson, Ian Poll
+Email:	cooper.ryan@centaurisoftware.co, dylantrwatson@gmail.com, irobot9803@gmail.com
 \*********************************************************************/
 
 #pragma once
@@ -38,13 +38,13 @@ namespace System
 			void SetUseDrive(bool enable) { m_DisableDrive = !enable; }
 			void SetUseOperator(bool enable) { m_DisableOperator = !enable; }
 			void DeleteAll();
+			void StartUp(vector<string> DeadControls);
+			void StartAuto(vector<string> EnableControls);
 	private:
 			bool m_DisableDrive=false;
 			bool m_DisableOperator=false;
 			MultitaskGoal* m_teleOpGoal;
 			ActiveCollection* m_activeCollection;
-			vector<ControlItem*> m_driveControlCollection;
-			vector<ControlItem*> m_operateControlCollection;
 	};
 } /* namespace Systems */
 

@@ -27,6 +27,7 @@ namespace Components
     class SwerveModule : public OutputComponent
     {
         public:
+            //This contains all the avalable locations to feed in the arguments for the swerve manager
             enum Location
             {
                 Front_Left = 0,
@@ -71,6 +72,7 @@ namespace Components
             bool SetTarget(double Wheel_Target, double Swivel_Target);
             bool SetSpeedTarget(double SPEEEEED);
 
+            //This is to check if the swerve module would be going toward the robot if the wheel is set to a positive value
             bool PointingIn(double Angle)
             {
                 switch(ModuleLoc)
@@ -90,7 +92,7 @@ namespace Components
                 }
                 return false;
             };
-
+            //This returns if the module is pointing in or not
             bool IsPointingIn()
             {
                 return PointingIn(GetSwivelTarget());
@@ -103,6 +105,8 @@ namespace Components
             Location GetLocation() {return ModuleLoc;};
 
         private:
+            //This is used to determine if the encoder that is used for rotation and distance linked in the config is one that is linked to a motor
+            //or is not and is independent in the config
             enum InputType
             {
                 EncoderType = 0,
@@ -111,13 +115,16 @@ namespace Components
 
             InputType GetType;
 
+            //These are the motors and encoders used in the module
             Motor *Swivel;
             Motor *Wheel;
             EncoderItem *SwivelEncoder;
             EncoderItem *WheelEncoder;
 
+            //The default location is front left but the config will change this when given a value in the .xml
             Location ModuleLoc = Location::Front_Left;
 
+            //These are used for telemetry and storing data
             double EncRevTicks = 0;
             double WheelEncRevTicks = 0;
             double CurrentSwivelTarget = 0;

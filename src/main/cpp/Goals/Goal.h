@@ -70,23 +70,49 @@ class Goal
 		bool HasStringData(int index) { return (index >= 0 && index < Stringdata.size()); }
 		void SetStringdata(int index, string dataVal);
 		string GetStringData(int index) { return HasStringData(index) ? Stringdata.at(index) : "N/A"; }
+		double GetStringDataAsDouble(int index)
+		{
+			if(HasStringData(index))
+			{
+				return stod(Stringdata.at(index));
+			}
+			return 0;
+		}
 		void CopyStringFrom(vector<string> dataIn, int startIndex);
 
+		//Goal ID, default is 0
 		int IdentityKey = 0;
+
+		//This is how to access methods in composite or multitask when called from a goal that is eActive
+		Goal* GetParent() { return ParentGoal == nullptr ? this : ParentGoal; }
+		void SetParent(Goal* Parent) { ParentGoal = Parent; }
+
+		virtual bool RemoveNextGoal() = 0;
+		virtual bool AddNextGoal(Goal* NewGoal) = 0;
+
+		virtual bool IsComposite() = 0;
+		virtual bool IsMultitask() = 0;
 
 	protected:
 		Goal_Status m_Status;
+		Goal* ParentGoal = nullptr;
 		//TODO see if Owner and Type are necessary
 }; 
 
 class AtomicGoal : public Goal
 {
+	public:
+		virtual bool IsComposite() override { return false; };
+		virtual bool IsMultitask() override { return false; };
+
+		virtual bool RemoveNextGoal() { return false; };
+		virtual bool AddNextGoal(Goal* NewGoal) { return false; };
+
 	protected:  //from Goal
 		virtual void Activate()=0;
 		virtual Goal_Status Process(double dTime) {return eCompleted;}
 		virtual void Terminate()=0;
 		//bool HandleMessage()  //TODO get event equivalent
-
 };
 
 class CompositeGoal : public Goal
@@ -104,6 +130,15 @@ class CompositeGoal : public Goal
 	bool RemoveGoal(int IdentityKey);
 	bool ReplaceGoal(int IdentityKey, Goal* NewGoal);
 
+	virtual bool IsComposite() override { return true; }
+	virtual bool IsMultitask() override { return false; }
+
+	virtual bool RemoveNextGoal() override;
+	virtual bool AddNextGoal(Goal* NewGoal) override;
+
+	template<typename T>
+	bool RemoveGoalOfType(Goal* Current, T Type, bool ExcludeType);
+
 	private:
 	typedef std::vector<Goal*> SubgoalList;
 	SubgoalList m_SubGoals;
@@ -118,7 +153,7 @@ class  MultitaskGoal : public Goal
 		MultitaskGoal(ActiveCollection* activeCollection, bool WaitAll=true);
 		~MultitaskGoal();
 		///first add the goals here
-		void AddGoal(Goal *g) {m_GoalsToProcess.push_back(g);}
+		void AddGoal(Goal *g) {m_GoalsToProcess.push_back(g); g->SetParent(this);}
 		///Then call this to manually activate once all goals are added
 		void Activate();
 		Goal &AsGoal() {return *this;}
@@ -129,6 +164,15 @@ class  MultitaskGoal : public Goal
 		bool HasGoal(int IdentityKey);
 		bool RemoveGoal(int IdentityKey);
 		bool ReplaceGoal(int IdentityKey, Goal* NewGoal);
+
+		virtual bool IsComposite() override { return false; }
+		virtual bool IsMultitask() override { return true; }
+
+		virtual bool RemoveNextGoal() override;
+		virtual bool AddNextGoal(Goal* NewGoal) override;
+
+		template<typename T>
+		bool RemoveGoalOfType(Goal* Current, T Type, bool ExcludeType);
 
 	protected:  //from Goal
 		

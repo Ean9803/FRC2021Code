@@ -23,6 +23,7 @@ namespace Components
     class ServoItem : public OutputComponent
     {
         public:
+            //The type of servo that is assosiated with this component, limited: 0-180/0-90/0-45, continous: unlimited
             enum ServoType
             {
                 Continuous = 0,

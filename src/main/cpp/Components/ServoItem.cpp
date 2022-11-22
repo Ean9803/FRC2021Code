@@ -18,6 +18,7 @@ using namespace std;
 using namespace frc;
 using namespace Components;
 
+//Constructor used by config
 ServoItem::ServoItem(string name, int port, double MaxAngle, ServoType Type, bool Real) : OutputComponent(name)
 {
     Angle = MaxAngle;
@@ -31,6 +32,7 @@ ServoItem::ServoItem(string name, int port, double MaxAngle, ServoType Type, boo
 	}
 }
 
+//Set servo based on percent, -1 to 1 => Min pos to Max pos
 void ServoItem::Set(double val)
 {
     CurrentPercent = val;
@@ -44,17 +46,20 @@ void ServoItem::Set(double val)
     }
 }
 
+//Set servo based on angle
 void ServoItem::AngleSet(double angle)
 {
     ServoItem::Set(abs(angle / Angle));
 }
 
+//Release to servo to free spin
 void ServoItem::SetOffline()
 {
     CurrentPercent = 0;
     BotServo->SetOffline();
 }
 
+//Get current angle
 double ServoItem::Get()
 {
     return CurrentPercent * Angle;
@@ -70,15 +75,23 @@ void ServoItem::Set(DoubleSolenoid::Value value)
     Log::Error("WHY DID YOU CALL SET SOLENOID FOR A SERVO?!? Yell at your programmers! Retard (or don't, its really up to you)");
 }
 
+/*
+The delete component is just a way to clean up space (it was used for quickload so we dont get dups of objects)
+*/
 void ServoItem::DeleteComponent()
 {
     delete BotServo;
 }
 
+//Method that is called by the ActiveCollection
 void ServoItem::UpdateComponent()
 {
     if (!UseTable)
 	{
 		OutputTable->PutNumber(name + "-Angle", ServoCal == ServoType::Limited? ServoItem::Get() : CurrentPercent);
+	}
+    if(PrintOut)
+	{
+		Log::General("````````````````````````````" + name + " value: " + to_string(Get()));
 	}
 }

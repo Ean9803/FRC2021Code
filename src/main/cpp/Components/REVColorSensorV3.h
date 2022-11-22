@@ -29,16 +29,20 @@ private:
     ColorSensorV3 *Color;
 	string Name;
 	rev::ColorMatch m_colorMatcher;
+	//Variables to store the color values
 	frc::Color kYellowTarget;
 	frc::Color kRedTarget;
 	frc::Color kGreenTarget;
 	frc::Color kBlueTarget;
+	frc::Color kBlack;
+	bool isReal = true;
 
 
 public:
-	REVColorSensorV3(string _name);
+	REVColorSensorV3(string _name, bool Real);
 	frc::Color GetColor();
 	virtual double Get() override;
+	virtual double GetValue() override {return Get();};
 	virtual void DeleteComponent() override;
 	void UpdateComponent() override;
 	string GetColorMatch();

@@ -26,7 +26,9 @@ private:
 	int channel;
 	bool reversed;
 	string Name;
+	//Vaiable to store value to "reset" the return value of the component
 	double Offset;
+	//Default encoder ticks for spark max
 	double EncTicks = 24;
 
 public:

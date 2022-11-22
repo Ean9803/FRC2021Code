@@ -23,12 +23,17 @@ namespace Components
 	{
 		public:
 			bool inUse = false;
+			//Abstract method to set component
 			virtual void Set(double val) = 0;
+			//Abstract method to get value
 			virtual double Get() = 0;
 			OutputComponent(){}
 			OutputComponent(string name) : NativeComponent(name){}
-
+			//Used by combo control to use values for logic
+			virtual double GetValue() override {return Get();};
+			//Abstract method to set solenoid to default value
 			virtual void DefaultSet() = 0;
+			//Abstract method to set solenoid to value
 			virtual void Set(DoubleSolenoid::Value value) = 0;
 			virtual ~OutputComponent(){}
 	};

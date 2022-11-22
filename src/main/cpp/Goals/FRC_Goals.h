@@ -118,7 +118,72 @@ class Goal_ControllerOverride : public AtomicGoal
     ActiveCollection *m_activeCollection;
 };
 
+class ResetSwerveDrive : public AtomicGoal
+{
+  public:
+    ResetSwerveDrive(ActiveCollection *Ac)
+    {
+      ActiveCol = Ac;
+    }
+    virtual void Activate();
+    virtual Goal::Goal_Status Process(double dTime);
+    virtual void Terminate();
+  private:
+    ActiveCollection *ActiveCol;
+    SwerveManager *ManagerDT;
+};
 
+class Goal_StopAllMotors : public AtomicGoal
+{
+  public:
+    Goal_StopAllMotors(ActiveCollection *Ac)
+    {
+      ActiveCol = Ac;
+    }
+    virtual void Activate();
+    virtual Goal::Goal_Status Process(double dTime);
+    virtual void Terminate();
+  private:
+    ActiveCollection *ActiveCol;
+};
+
+class Goal_SetControl : public AtomicGoal
+{
+  public:
+    Goal_SetControl(ActiveCollection *Ac, string Name, vector<double> Values, bool Driver = false)
+    {
+      ActiveCol = Ac;
+      NameCont = Name;
+      Vals = Values;
+      isDriver = Driver;
+    }
+    virtual void Activate();
+    virtual Goal::Goal_Status Process(double dTime);
+    virtual void Terminate();
+  private:
+    ActiveCollection *ActiveCol;
+    vector<double> Vals;
+    string NameCont = "";
+    bool isDriver = false;
+};
+
+class Goal_SetComponent : public AtomicGoal
+{
+  public:
+    Goal_SetComponent(ActiveCollection *Ac, string Name, double Values)
+    {
+      ActiveCol = Ac;
+      NameCont = Name;
+      Vals = Values;
+    }
+    virtual void Activate();
+    virtual Goal::Goal_Status Process(double dTime);
+    virtual void Terminate();
+  private:
+    ActiveCollection *ActiveCol;
+    double Vals;
+    string NameCont = "";
+};
 
 //Goals that use data to determine completion go here
 #pragma region FeedbackLoopGoals
@@ -131,11 +196,12 @@ class Goal_ControllerOverride : public AtomicGoal
 class AutoPath : public CompositeGoal
 {
   public:
-    AutoPath(ActiveCollection* activeCollection, Auto Path, double MaxTime, bool Swerve = false, double Scale = 1)
+    AutoPath(ActiveCollection* activeCollection, Auto Path, string Name, double MaxTime, bool Swerve = false, double Scale = 1)
     {
       MaxT = MaxTime;
       lenght = Path.Num;
       IsSwerve = Swerve;
+      NamePath = Name;
       m_activeCollection = activeCollection;
       Radius = new double[Path.Num];
       Angle = new double[Path.Num];
@@ -154,6 +220,25 @@ class AutoPath : public CompositeGoal
     }
     virtual void Activate();
     virtual void Terminate();
+
+    void Shoot(bool MoveIntake, double Time)
+    {
+      if(MoveIntake)
+      {
+        this->AddSubgoal(new Goal_SetComponent(m_activeCollection, "IntakePistion", -1));
+        this->AddSubgoal(new Goal_Wait_ac(m_activeCollection, 1));
+      }
+        this->AddSubgoal(new Goal_SetControl(m_activeCollection, "WheelControl", vector<double> {1}));
+        this->AddSubgoal(new Goal_Wait_ac(m_activeCollection, 1));
+        this->AddSubgoal(new Goal_SetControl(m_activeCollection, "RevolveControl", vector<double> {90}));
+        this->AddSubgoal(new Goal_Wait_ac(m_activeCollection, Time));
+        this->AddSubgoal(new Goal_SetControl(m_activeCollection, "WheelControl", vector<double> {0}));
+        this->AddSubgoal(new Goal_SetControl(m_activeCollection, "RevolveControl", vector<double> {-1}));
+      if(MoveIntake)
+      {
+        this->AddSubgoal(new Goal_SetComponent(m_activeCollection, "IntakePistion", 1));
+      }
+    }
   private:
     double* Radius;
     double* Angle;
@@ -162,6 +247,7 @@ class AutoPath : public CompositeGoal
     int lenght = 0;
     bool IsSwerve = false;
     double Scale = 1;
+    string NamePath;
     ActiveCollection* m_activeCollection;
 };
 
@@ -209,7 +295,32 @@ class Goal_MotorPosition : public AtomicGoal
     double TargetPos = 0;
     ActiveCollection *m_activeCollection;
     Motor* Subject = nullptr;
-    EncoderItem* Position = nullptr;
+};
+
+class Goal_ButtonMove : public AtomicGoal
+{
+  public:
+    Goal_ButtonMove(ActiveCollection* Ac)
+    {
+      ActiveCol = Ac;
+      enc0 = (Motor*)Ac->Get("WheelLeftT");
+      m_Status = eInactive;
+    }
+    virtual void Activate();
+    virtual Goal::Goal_Status Process(double dTime);
+    virtual void Terminate();
+  private:
+    ActiveCollection *ActiveCol;
+    Motor *enc0;
+    NavX *navx;
+
+    double enc = 0;
+    double currentValue = 0;
+    double TimePassed = 0;
+      
+    double NumberAtTarget = 0;
+    bool Moving = false;
+    bool Done = false;
 };
 
 class Goal_MoveForward : public AtomicGoal
@@ -218,14 +329,14 @@ class Goal_MoveForward : public AtomicGoal
     Goal_MoveForward(ActiveCollection *activeCollection, double Dist, double MaxPowerOutput, double MaxTime, double SpeedBias = 1)
     {
         Log::General("Move Forward to: " + to_string(Dist) + " Feet");
-        RealTarget = Dist * DistMultiplyer;
+        RealTarget = ((Dist * DistMultiplyer) / 26) * 12;
         MaxPower = MaxPowerOutput;
         m_activeCollection = activeCollection;
         distTo = (RealTarget);
         TotalTime = MaxTime;
         IsNegative = Dist < 0;
         //enc0 = activeCollection->GetEncoder("enc0");
-        enc0 = (SparkMaxItem*)activeCollection->Get("left1");
+        enc0 = (Motor*)activeCollection->Get("WheelLeftT");
         m_Status = eInactive;
         SBias = SpeedBias;
         if(Inrange(ABSValue(Dist), 0, 0.001))
@@ -248,7 +359,7 @@ class Goal_MoveForward : public AtomicGoal
 
       ActiveCollection *m_activeCollection;
       //EncoderItem* enc0;
-      SparkMaxItem *enc0;
+      Motor *enc0;
       NavX *navx;
 
       bool IsNegative  = false;
@@ -283,7 +394,7 @@ class Goal_TurnPIDF : public AtomicGoal
 
         navx = activeCollection->GetNavX();
         Log::General("Turn to: " + to_string(Angle) + " Degrees, Negative: " + to_string(IsNegative));
-        RealTarget = ABSValue(Angle);
+        RealTarget = (Angle);
         MaxPower = MaxPowerOutput;
         m_activeCollection = activeCollection;
         TotalTime = MaxTime;
@@ -332,25 +443,22 @@ class Goal_TurnPIDF : public AtomicGoal
 class Goal_CurvePath : public AtomicGoal
 {
   public:
-    Goal_CurvePath(ActiveCollection *activeCollection, double Dist, double Angle, double TurnRadius, double MaxPowerOutput, double MaxTime, double SpeedBias = 1, double Bias = 10, double RobotBase = 23)
+    Goal_CurvePath(ActiveCollection *activeCollection, string LeftMtr, string RightMtr, string PIDSettingName, double Angle, double TurnRadius, double MaxTime, double WheelRadius = 1, double RobotBase = 23)
     {
-      Log::General("Moving Curve at: " + to_string(Dist) + " at and angle of: " + to_string(Angle) + " with a radius of: " + to_string(TurnRadius));
+      Log::General("Moving Curve: angle of: " + to_string(Angle) + " with a radius of: " + to_string(TurnRadius));
       navx = activeCollection->GetNavX();
       AngleTarget = (Angle);
-      DistTarget = Dist;
-      MaxPower = MaxPowerOutput;
+      RadiusTarget = (TurnRadius);
       m_activeCollection = activeCollection;
       TotalTime = MaxTime;
       m_Status = eInactive;
-      DistBias = Bias;
       Base = RobotBase;
-      encL = (SparkMaxItem*)activeCollection->Get("left1");
-      encR = (SparkMaxItem*)activeCollection->Get("right1");
-      Radi = TurnRadius * RadiusMulit;
-      Radi *= MultiExtra;
-      AngleTarget *= MultiExtra;
-
-      if((Dist == 0 && Angle == 0 && TurnRadius == 0))
+      PIDName = PIDSettingName;
+      WheelRadi = WheelRadius;
+      encL = activeCollection->GetMotor(LeftMtr);
+      encR = activeCollection->GetMotor(RightMtr);
+      
+      if((Angle == 0 && TurnRadius == 0))
       {
         TotalTime = 0;
       }
@@ -359,62 +467,27 @@ class Goal_CurvePath : public AtomicGoal
     virtual void Activate();
     virtual Goal::Goal_Status Process(double dTime);
     virtual void Terminate();
-    void GetLastData();
-    void SaveData();
 
   private:
     ActiveCollection *m_activeCollection;
     NavX *navx;
-    SparkMaxItem *encR;
-    SparkMaxItem *encL;
+    Motor *encR;
+    Motor *encL;
+    string PIDName;
 
-    bool GyroUse = true;
-    double Radi = 0;
-    double Base;
-    double AngleTarget;
-    double DistTarget;
-    double Dist;
-    double MaxPower;
-    double TotalTime;
-    double TimePassed = 0;
-    
-    
-    double LeftSpeedMult = 0.01;
-    double RightSpeedMult = 0.01;
-
-    //Spacing: 0.1
-    //Spacing: 0.05
-    double DistMulit = 2.24;
-    double RadiusMulit = 1;
-    double MultiExtra = 1;
-
-    double LeftSpeed = 0;
-    double RightSpeed = 0;
-    double LeftAdd = 0.03;
-    double RightAdd = 0.03;
-
-    double P = 0.5; //PID constants
-	  double I = 0.1;
-	  double D = 0.01;
-
-    double AngleBias = 0, DistBias = 0;
-	  double Limit = 0.4;
-    
-    double PrevE = 0, totalE = 0;
-    double PrevEncoder = 0, totalEncoder = 0;
-    double Pevpower = 0.1;
-    double PrevEResult = 0;
-
-    double currentValue = 0;
-    double NumberAtTarget = 0;
-    
     bool Moving = false;
     bool Done = false;
+    double Base;
+    double AngleTarget;
+    double RadiusTarget;
+    double TotalTime;
+    double TimePassed = 0;
+    double TimeAtTarget = 0;
+    double TotalDistance = 0;
+    double WheelRadi = 1;
 
-    double ResultRight;
-    double ResultLeft;
-    double MinPowerL = 0;
-    double MinPowerR = 0;
+    double RightBias = 1;
+    double LeftBias = 1;
 };
 
 class Goal_LimelightTrack : public AtomicGoal

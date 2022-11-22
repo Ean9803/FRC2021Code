@@ -18,6 +18,7 @@ Email: dylantrwatson@gmail.com
 using namespace std;
 using namespace Components;
 
+//Used to set power to motor
 void VictorSPItem::Set(double val)
 {
 	val = CalculateVal(val);
@@ -36,16 +37,18 @@ void VictorSPItem::Set(double val)
 	}
 }
 
+//Stops the motor
 void VictorSPItem::Stop()
 {
 	if(!inUse)
 	{
 		inUse = true;
-		victor->Set(0);
+		SetPercent(0);
 		inUse = false;
 	}
 }
 
+//Returns the current percent output
 double VictorSPItem::Get()
 {
 	if(Reversed)
@@ -53,22 +56,36 @@ double VictorSPItem::Get()
 	return victor->Get();
 }
 
+//Returns the name of the component
 string VictorSPItem::GetName()
 {
 	return name;
 }
 
+//Returns the direction of the motor
 int VictorSPItem::GetPolarity()
 {
 	if(Reversed) return -1;
 	return 1;
 }
 
+/*
+The delete component is just a way to clean up space (it was used for quickload so we dont get dups of objects)
+*/
 void VictorSPItem::DeleteComponent()
 {
 	CleanUpProfiles();
 	delete victor;
 	delete this;
+}
+
+//Method Called by the ActiveCollection
+void VictorSPItem::UpdateComponent()
+{
+	if(PrintOut)
+	{
+		Log::General("`````````````````````Motor: " + name + "    Power: " + to_string(VictorSPItem::Get()) +  "   Position: " + to_string(GetEncoder()->Get()) + " Angle: " + to_string(GetAngle()));
+	}
 }
 
 void VictorSPItem::DefaultSet()

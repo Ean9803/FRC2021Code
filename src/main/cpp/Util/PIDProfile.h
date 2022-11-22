@@ -43,7 +43,13 @@ namespace Util
 
 			PIDProfile(ProfileData* Data)
             {
-                SetP(Data->Pval);
+                SetAtt(Data);
+            };
+
+			void SetAtt(ProfileData* Data)
+			{
+				DataProf = Data;
+				SetP(Data->Pval);
                 SetI(Data->Ival);
                 SetD(Data->Dval);
                 SetBias(Data->Bias);
@@ -53,8 +59,22 @@ namespace Util
 				SetInnerMax(Data->InnerMax);
 				SetInnerMin(Data->InnerMin);
 				SetThres(Data->Thres);
-				Name = Data->Name;
-            };
+				SetPrint(Data->Print);
+				if(FirstTime)
+				{
+					FirstTime = false;
+					Name = Data->Name;
+				}
+				_TotalE = 0;
+                _PrevE = 0;
+                _PrevR = 0;
+                _ErrorTo = 0;
+				LastResult = 0;
+				CurrentSpeed = 0;
+				LastWheelEncoderVal = 0;
+				CurrentRamp = 0;
+				SpeedReached = false;
+			};
 
             void SetP(double P)
             {
@@ -113,10 +133,21 @@ namespace Util
 
             void Reset()
             {
-                _TotalE = 0;
-                _PrevE = 0;
-                _PrevR = 0;
-                _ErrorTo = 0;
+				Reseted = true;
+				if(DataProf != nullptr)
+                	SetAtt(DataProf);
+				else
+				{
+					_TotalE = 0;
+            	    _PrevE = 0;
+        	        _PrevR = 0;
+    	            _ErrorTo = 0;
+					LastResult = 0;
+					CurrentSpeed = 0;
+					LastWheelEncoderVal = 0;
+					CurrentRamp = 0;
+					SpeedReached = false;
+				}
             };
 
             double ABSValue(double val)
@@ -142,7 +173,7 @@ namespace Util
 
         	bool Inrange(double Target, double Value)
         	{
-		        if(Distance(Value, Target) <= Target)
+		        if(Distance(Value, Target) == 0)
 	        	{
 	        		return true;
         		}
@@ -190,7 +221,10 @@ namespace Util
 	        {
 		        TotalError += Error * ChangeInTime;
 		        ErrorTo += (Error - Target) * ChangeInTime;
-		        return ((P * Error) + (I * TotalError) + (D * (ErrorTo)));
+				double ICal = (I * TotalError);
+				double DCal = (D * (ErrorTo));
+				double Val = ((P * Error) + ICal + DCal);
+		        return Val;
 	        };
 
 	        bool BelowMaxRate(double Val1, double Val2, double MaxRate)
@@ -210,7 +244,7 @@ namespace Util
 
 			double CloserTo(double Val, double Min, double Max)
 			{
-				if(abs(abs(Val) - abs(Min)) < abs(abs(Val) - abs(Max)))
+				if(abs((Val) - (Min)) < abs((Val) - (Max)))
 					return Min;
 				return Max;
 			};
@@ -231,27 +265,52 @@ namespace Util
 				return ABSValue(ABSValue(Val) - ABSValue(OtherVal));
 			};
 
-            double PIDCal(double P, double I, double D, double Target, double Current, double& LastResult, double& TotalError, double& PrevError, double& ErrorTo, double ChangeInTime, double MaxPower, double MinPower, double MaxChange, double Bias)
+            double PIDCal(double P, double I, double D, double Target, double Current, double& LastResult, double& TotalError, double& PrevError, double& ErrorTo, double ChangeInTime, double MaxPower, double MinPower, double MaxChange, double Bias, bool ConstrainVal = true)
 	        {
-				if(abs(Current - Target) < Thres)
+				if(Inrange(Target, Current, Thres))
+				{
 					return 0;
-        		double Result = PIDCalculae(P, I, D, TotalError, (Current - Target), PrevError, ChangeInTime, ErrorTo, Target);
-        		PrevError = (Current - Target);
-        		Result = Constrain(Scale(Result, 0, (Bias)), MinPower, MaxPower);
-				Result += (Sign(Result) > 0 ? InnerMax : InnerMin);
-				Result = Constrain(Result, MinPower, MaxPower);
-        		if(!BelowMaxRate(Result, LastResult, MaxChange) && Sign(Result) == Sign(LastResult))
+				}
+				double dir = (Sign(Bias) * Sign(Current - Target));
+				double Raw = 0;
+        		double Result = 0;
+				Raw = PIDCalculae(P, I, D, TotalError, abs(Current - Target), PrevError, ChangeInTime, ErrorTo, Target);
+				Result = Raw;
+        		PrevError = abs(Current - Target);
+				Result = Scale(Result, 0, abs(Bias));
+				Raw = Scale(Result, 0, abs(Bias));
+				//Log::General("+++++++++++++++++++Result after cal: " + to_string(Result));
+				if(ConstrainVal)
+        			Result = Constrain(Result, MinPower, MaxPower);
+				//Log::General("+++++++++++++++++++Result after Scale: " + to_string(Result));
+				Result = abs(Result) * dir;
+				//Log::General("+++++++++++++++++++Result after Dir: " + to_string(Result));
+				if(ConstrainVal)
+        			Result += (Sign(Result) > 0 ? InnerMax : InnerMin);
+				//Log::General("+++++++++++++++++++Result after InnerBound: " + to_string(Result) + " InnerMax: " + to_string(InnerMax) + " InnerMin: " + to_string(InnerMin));
+				if(ConstrainVal)
+        			Result = Constrain(Result, MinPower, MaxPower);
+				//Log::General("+++++++++++++++++++Result after OuterBound: " + to_string(Result));
+        		if(!BelowMaxRate(Result, LastResult, MaxChange))
 	        	{
-	        		Log::General("!!!!ERROR:-------------PIDCal went over max change, Change = " + to_string(ABSValue(ABSValue(Result) - ABSValue(LastResult))) + "!!!!");
+					Log::General("//////////////Sign: " + to_string(dir) + "   ///Bias sign: " + to_string(Sign(Bias)) + "   ///Bias: " + to_string(Bias) + "   ///Error: " + to_string(Sign(Current - Target)));
+	        		Log::General("!!!!ERROR:-------------PIDCal for " + Name + " went over max change, Change = " + to_string(ABSValue(ABSValue(Result) - ABSValue(LastResult))) + "! Max change allowed: " + to_string(MaxChange) + " Raw value = " + to_string(Raw));
 	        		Result = LastResult;
 	        	}
-				
+				//Log::General("*******************************Result: " + to_string(Result));
         		LastResult = Result;
+
+				if(Print)
+				{
+					double E = Current - Target;
+					Log::General("PID Name: " + Name + "Error: " + to_string(E) + " Output: " + to_string(Result) + " Dir: " + to_string(dir) + " Bias: " + to_string(Bias) + " P: " + to_string(P) + " I: " + to_string(I) + " D: " + to_string(D) + "\nMax Change: " + to_string(MaxChange) + " Constrain:" + (ConstrainVal ? " Yes" : " No") + " InnerMin: " + to_string(InnerMin) + " InnerMax: " + to_string(InnerMax) + " Min: " + to_string(MaxPower) + " Min: " + to_string(MinPower));
+				}
+
 		        return Result;
         	};
 
             double GetP() {return Pval;};
-            double GetU() {return Ival;};
+            double GetI() {return Ival;};
             double GetD() {return Dval;};
 
             double GetBias() {return BiasV;};
@@ -261,11 +320,16 @@ namespace Util
             double GetLastErrorV() {return _PrevE;};
             double GetLastResult() {return _PrevR;};
 			double GetErrorTo() {return _ErrorTo;};
+
+			string GetName() {return Name;};
+			void SetName(string Name) {this->Name = Name;};
             
             void SetTotalError(double val) { _TotalE = val;};
             void SetLastError(double val) { _PrevE = val;};
             void SetLastResult(double val) { _PrevR = val;};
 			void SetErrorTo(double val) { _ErrorTo = val;};
+
+			void SetPrint(bool PrintOut){Print = PrintOut;};
 
 			void SetBackgroundInfo(double TotalError, double LastError, double LastResult, double ErrorTo)
 			{
@@ -275,46 +339,66 @@ namespace Util
 				SetErrorTo(ErrorTo);
 			};
 
-            double Calculate(double Target, double Current, double D_Time)
+            double Calculate(double Target, double Current, double D_Time, bool ConstrainVal = true)
             {
-				return PIDCal(Pval, Ival, Dval, Target, Current, _PrevR, _TotalE, _PrevE, _ErrorTo, D_Time, MaxPower, MinPower, MaxChange, BiasV);
+				return PIDCal(Pval, Ival, Dval, Target, Current, _PrevR, _TotalE, _PrevE, _ErrorTo, D_Time, MaxPower, MinPower, MaxChange, BiasV, ConstrainVal);
             };
 
-			double CalSpeed(double SPEEEED, double MotorPower, double Enc, double D_Time)
+			double CalSpeed(double SPEEEED, double MotorPower, double Enc, double D_Time, double Rev = 1)
 			{
 				if (SPEEEED != 0)
     			{
-        			if (Inrange(MotorPower, 0, 0.01))
-        			{
-            			if (LastWheelEncoderVal == 0)
-            			{
-                			LastWheelEncoderVal = Enc;
-            			}
-            			double rate = (LastWheelEncoderVal - Enc);
-            			double Error = rate - SPEEEED;
+            		if ((LastWheelEncoderVal) == 0)
+            		{
+                		LastWheelEncoderVal = (Enc);
+            		}
+        			double rate = (LastWheelEncoderVal - (Enc)) / Rev;
+					double Change = abs(CalPIDRamp((SPEEEED), (rate), D_Time));
+					double dir = (Sign(BiasV) * Sign(rate - SPEEEED));
+					CurrentSpeed = Change + CurrentSpeed;
 
-    			        double Result = Calculate(SPEEEED, Error, D_Time);
-            			double Scaled = Scale(Result, 0.1, (GetP() * SPEEEED * 5));
-            			double SpedSpeed = (SPEEEED < 0 ? Constrain(Scaled, -1, 0) : Constrain(Scaled, 0, 1));
-            			SpedSpeed = (ABSValue(ABSValue(LastResult) - ABSValue(SpedSpeed)) < 0.5? SpedSpeed : LastResult);
-
-						LastResult = SpedSpeed;
-			            LastWheelEncoderVal = Enc;
-			            
-						SpeedReached = Inrange(SPEEEED, rate, 50);
-			            return (SpedSpeed);
-        			}
-        			else
-        			{
-						SpeedReached = false;
-            			return (SPEEEED > 0 ? 0.1 : -0.1);
-        			}
+					if(!BelowMaxRate(CurrentSpeed, LastResult, MaxChange))
+	        		{
+	        			Log::General("!!!!ERROR:-------------PIDCal for " + Name + " went over max change for rate, Change = " + to_string(ABSValue(ABSValue(CurrentSpeed) - ABSValue(LastResult))) + "! Max change allowed: " + to_string(MaxChange) + " Raw value = " + to_string(CurrentSpeed));
+	    				CurrentSpeed = LastResult;
+	    			}
+            		
+					LastResult = CurrentSpeed;
+			        LastWheelEncoderVal = (Enc);
+			        
+					SpeedReached = Inrange(abs(SPEEEED), abs(rate), 50);
+		            return (CurrentSpeed);
     			}
     			else
     			{
 					SpeedReached = false;
         			return (0);
     			}
+			};
+
+			double CalPIDChange(double Target, double Current, double D_Time, bool ConstrainVal = false)
+			{
+				double Val = Calculate(Target, Current, D_Time, ConstrainVal);
+				double Change = 0;
+				if(Reseted)
+				{
+					Reseted = false;
+				}
+				else
+				{
+					Change = (Val - LastPIDResult);
+				}
+				LastPIDResult = Val;
+				return Change;
+			};
+
+			double CalPIDRamp(double Target, double Current, double D_Time)
+			{
+				if(Inrange(Target, Current, Thres))
+					return CurrentRamp;
+				double Change = abs(CalPIDChange(Target, Current, D_Time, false)) * Sign(Current - Target);
+				CurrentRamp += Change;
+				return CurrentRamp;
 			};
 
 			bool ReachedSpeed() {return SpeedReached;};
@@ -342,10 +426,19 @@ namespace Util
 
 			double LastWheelEncoderVal = 0;
             double LastResult = 0;
+			double LastPIDResult = 0;
+			double CurrentRamp = 0;
+
+			double CurrentSpeed = 0;
 
 			bool SpeedReached = false;
+			bool Reseted = true;
+			bool Print = false;
 
 			string Name = "PID";
+			ProfileData *DataProf = nullptr;
+
+			bool FirstTime = true;
     };
 
 	

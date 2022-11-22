@@ -6,8 +6,8 @@ Project:     BroncBotzFRC2019
 Copyright (c) BroncBotz.
 All rights reserved.
 
-Author(s):	Dylan Watson
-Email:	dylantrwatson@gmail.com
+Author(s):	Dylan Watson, Ian Poll
+Email:	dylantrwatson@gmail.com, irobot9803@gmail.com
 \*********************************************************************/
 
 
@@ -30,27 +30,23 @@ namespace Controls
 		private:
 			int axis;
 			double deadZone;
-			int getSign(double val);
-			double currentPow;
-			double previousPow;
-			int channel;
-			double gane;
+			double Mult;
+			int Mode;
+			bool Overdrive;
 			bool isLift;
-			ActiveCollection *m_activeCollection;
-			//TODO: downVal
-			bool isIdle = false;
-			double targetVal;
-
-			double bias = -.05;
-
-			//this var is for overdrive, if it is being used
-			double overdriveModifier = 0;
-			//this var is assigned when axis is configure. decides wehter overdrive is to be used or not
-			bool useOverdrive;
+			double gane;
+			bool reversed = false;
+			ActiveCollection* m_activeCollection;
+			int Sign(double val)
+			{
+				if(val >= 0)
+					return 1;
+				return -1;
+			}
 
 		public:
 			AxisControl();
-			AxisControl(Joystick *_joy, string _name, int _axis, double _deadZone, bool _reversed, double _powerMultiplier, ActiveCollection* ac, bool _useOverdrive = false);
+			AxisControl(Joystick *_joy, string _name, int _axis, double _deadZone, bool _reversed, double _powerMultiplier, ActiveCollection* ac, int Mode, bool _useOverdrive = false);
 			virtual double Update(double _dTime) override;
 			void SetLift(double _gane, ActiveCollection *activeCollection);
 			virtual ~AxisControl();

@@ -6,8 +6,8 @@ Project:     BroncBotzFRC2019
 Copyright (c) BroncBotz.
 All rights reserved.
 
-Author(s):	Dylan Watson
-Email:	dylantrwatson@gmail.com
+Author(s):	Dylan Watson, Ian Poll
+Email:	dylantrwatson@gmail.com, irobot9803@gmail.com
 \*********************************************************************/
 
 #pragma once
@@ -21,23 +21,35 @@ Email:	dylantrwatson@gmail.com
 namespace Controls{
 
 class GoalButtonControl : public ControlItem {
-private:
-	int m_button;
-	double m_current = 0;
-	double m_previous = 0;
-
 public:
+	enum ControlButtonState
+	{
+		onRelease = 0,
+		onPress = 1,
+		both = 2
+	};
+
 	GoalButtonControl();
-	GoalButtonControl(Joystick *_joy, string _name, int _button, ActiveCollection* ac, TeleOpGoal _goal, double _target, int KeyID, vector<int> RemoveKeys, bool _reversed = false, double _powerMultiplier = 1.0);
+	GoalButtonControl(Joystick *_joy, string _name, vector<int> Axis, ActiveCollection* ac, TeleOpGoal _goal, vector<string> Strings, int _StartIndex, int KeyID, vector<int> RemoveKeys, bool _RepeatWhenFinished = false, ControlButtonState ActivationState = ControlButtonState::onPress, double _powerMultiplier = 1.0);
 	virtual ~GoalButtonControl();
 	int getSign(double val);
 	virtual double Update(double _dTime) override;
 
 	TeleOpGoal m_goal;
-	double m_target;
-	bool m_goalSet = false;
+	int StartIndex = 0;
 	
 	int IdKey = 0;
 	vector<int> RemoveKeys;
+	bool RepeatWhenFinished;
+
+private:
+	vector<int> m_Axis;
+    vector<double> m_AxisVals;
+	vector<string> m_StringVals;
+	ControlButtonState State;
+
+	double m_current = 0;
+	double m_previous = 0;
+	double Mult = 1;
 };
 }

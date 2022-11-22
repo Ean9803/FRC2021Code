@@ -23,6 +23,7 @@ namespace Components
 		public:
 			VictorSPItem(){}
 			virtual ~VictorSPItem(){}
+			//Constructor called by config
 			VictorSPItem(string name, int channel, bool reversed) : Motor(name, reversed)
 			{
 				victor = new VictorSP(channel);
@@ -34,6 +35,7 @@ namespace Components
 			virtual void Set(double val) override;
 			virtual double Get() override;
 			virtual void DeleteComponent() override;
+			virtual void UpdateComponent() override;
 			//for reference
 			//operator VictorSP *() { return victor;}
 			VictorSP *AsVictorSP() { return victor; }

@@ -41,33 +41,34 @@ SwerveControl::SwerveControl(Joystick *_joy, DriveCalculation _Cal, string _name
 double SwerveControl::Update(double _dTime)
 {
     SwerveDrive->UpdateSystem(_dTime);
-
-    double rawH = -CalculateDeadZone((*joy).GetRawAxis(HAxis), DeadZone) * (ReverseH ? -Mult : Mult);
-    double rawV = CalculateDeadZone((*joy).GetRawAxis(VAxis), DeadZone) * (ReverseV ? -Mult : Mult);
-    double rawS = -CalculateDeadZone((*joy).GetRawAxis(SAxis), DeadZone) * (ReverseS ? -Mult : Mult);
+    //SwerveDrive->PrintLocation();
+    vector<double> In = GetAxis(vector<int> {HAxis, VAxis, SAxis});
+    double rawH = -CalculateDeadZone(In.at(0), DeadZone) * (ReverseH ? -Mult : Mult);
+    double rawV = CalculateDeadZone(In.at(1), DeadZone) * (ReverseV ? -Mult : Mult);
+    double rawS = -CalculateDeadZone(In.at(2), DeadZone) * (ReverseS ? -Mult : Mult);
     rawV *= -1;
 
     if(Reversed)
     {
-        rawH *= -1;
         rawV *= -1;
-        rawS *= -1;
     }
 
     if (Cal == SwerveControl::DriveCalculation::Field_Oriented)
     {
-        double gyro = m_Collection->GetNavX()->GetConstAngle() * M_PI / 180;
-
+        double gyro = m_Collection->GetNavX()->GetNavXAngle(NavX::AxisAngle::Y_Axis) * M_PI / 180;
+        m_Collection->GetNavX()->OutPrint();
         double temp = rawH * cos(gyro) + rawV * sin(gyro);
         rawV = -rawH * sin(gyro) + rawV * cos(gyro);
         rawH = temp;
+        rawV *= -1;
+        rawH *= -1;
     }
     else if (Cal == SwerveControl::DriveCalculation::Warthog)
     {
         rawS = rawH;
         rawH = 0;
     }
-    else if (Cal == SwerveControl::DriveCalculation::Warthog_Field_Oriented)
+    else if (Cal == SwerveControl::DriveCalculation::Warthog_Field_Oriented) //useless..only drive in a stright line relative to start angle and rotate on the line
     {
         double gyro = m_Collection->GetNavX()->GetConstAngle() * M_PI / 180;
 
@@ -78,10 +79,25 @@ double SwerveControl::Update(double _dTime)
         rawS = rawH;
         rawH = 0;
     }
+    double Average = abs((abs(rawH) + abs(rawV) + abs(rawS)) / 3);
+    if(Average > 0)
+    {
+        StopM = true;
+        ValueChanged(new IEventArgs<double, double, double, SwerveControl*>(rawV, rawH, rawS, this));
+    }
+    else if(StopM)
+    {
+        ValueChanged(new IEventArgs<double, double, double, SwerveControl*>(0, 0, 0, this));
+        StopM = false;
+    }
 
-    ValueChanged(new IEventArgs<double, double, double, SwerveControl*>(rawV, rawH, rawS, this));
+    double RawAv =  (((rawH) + (rawV) + (rawS)) / 3);
+    if(PrintOut)
+	{
+		Log::General("````````````````````````````" + name + " value: " + to_string(RawAv));
+	}
 
-    return (rawH + rawV + rawS) / 3;
+    return RawAv;
 }
 
 void SwerveControl::DeleteComponent()

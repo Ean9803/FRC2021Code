@@ -19,7 +19,7 @@ using namespace frc;
 using namespace Components;
 
 VictorSPXItem::VictorSPXItem() {}
-
+//Constructor used by config
 VictorSPXItem::VictorSPXItem(int _channel, string _name, bool _reversed)
 	: Motor(_name, _reversed){
 	channel = _channel;
@@ -28,12 +28,14 @@ VictorSPXItem::VictorSPXItem(int _channel, string _name, bool _reversed)
 	victor->ConfigSelectedFeedbackSensor(FeedbackDevice::QuadEncoder, 0, 10);
 }
 
+//Returns the current percent output
 double VictorSPXItem::Get(){
     if (reversed)
         return victor->GetMotorOutputPercent() * -1;
     return victor->GetMotorOutputPercent();
 }
 
+//Sets the motor power percent
 void VictorSPXItem::Set(double val){
 	val = CalculateVal(val);
 	if((val<0 || val>0) && !inUse)
@@ -58,16 +60,29 @@ void VictorSPXItem::Set(DoubleSolenoid::Value value){
 	Log::Error("WHY DID YOU CALL THE DEFAULT SET FOR A MOTOR?!? Yell at your programmers!");
 }
 
+//Stops the Motor
 void VictorSPXItem::Stop()
 {
-	VictorSPXItem::Set(0);
+	SetPercent(0);
 }
 
+/*
+The delete component is just a way to clean up space (it was used for quickload so we dont get dups of objects)
+*/
 void VictorSPXItem::DeleteComponent()
 {
 	CleanUpProfiles();
 	delete victor;
 	delete this;
+}
+
+//Method called by the ActiveCollection
+void VictorSPXItem::UpdateComponent()
+{
+	if(PrintOut)
+	{
+		Log::General("`````````````````````Motor: " + name + "    Power: " + to_string(VictorSPXItem::Get()) +  "   Position: " + to_string(GetEncoder()->Get()) + " Angle: " + to_string(GetAngle()));
+	}
 }
 
 VictorSPXItem::~VictorSPXItem() {}

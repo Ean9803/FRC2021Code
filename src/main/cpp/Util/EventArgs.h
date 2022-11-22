@@ -21,14 +21,23 @@ class EventArgs
 template<class T1, class T2>
 class TEventArgs : public EventArgs
 {
+public:
+    enum ControlPowerMode
+    {
+        Raw = 0,
+        Ramp = 1,
+        Encoder = 2,
+        Position = 3
+    };
+    T1 GetValue() { return value; }
+    T2 GetSender() { return sender; }
+    ControlPowerMode GetMode() { return Mode; }
+    TEventArgs(T1 value, T2 sender, ControlPowerMode Mode = ControlPowerMode::Ramp) { this->value = value; this->sender = sender; this->Type = 0; this->Mode = Mode; }
+    
 private:
     T1 value;
     T2 sender;
-
-public:
-    T1 GetValue() { return value; }
-    T2 GetSender() { return sender; }
-    TEventArgs(T1 value, T2 sender) { this->value = value; this->sender = sender; this->Type = 0;}
+    ControlPowerMode Mode;
 };
 
 template<class T1, class T2, class T3, class T4>

@@ -24,90 +24,127 @@ using namespace std;
 using namespace frc;
 using namespace Components;
 
-REVColorSensorV3::REVColorSensorV3(string _name)
-	: InputComponent(_name){
-    //Fix error
+//Constructor used by config
+REVColorSensorV3::REVColorSensorV3(string _name, bool Real) : InputComponent(_name)
+{
 	Color = new ColorSensorV3(frc::I2C::Port::kOnboard);
 	Name = _name;
-    kBlueTarget = frc::Color(0.143, 0.427, 0.429);
-    kGreenTarget = frc::Color(0.197, 0.561, 0.240);
-    kRedTarget = frc::Color(0.561, 0.232, 0.114);
-    kYellowTarget = frc::Color(0.361, 0.524, 0.113);
-    m_colorMatcher.AddColorMatch(kBlueTarget);
-    m_colorMatcher.AddColorMatch(kGreenTarget);
-    m_colorMatcher.AddColorMatch(kRedTarget);
-    m_colorMatcher.AddColorMatch(kYellowTarget);
+  kBlueTarget = frc::Color(0.143, 0.427, 0.429);
+  kGreenTarget = frc::Color(0.197, 0.561, 0.240);
+  kRedTarget = frc::Color(0.561, 0.232, 0.114);
+  kYellowTarget = frc::Color(0.361, 0.524, 0.113);
+  kBlack = frc::Color(0, 0, 0);
+  m_colorMatcher.AddColorMatch(kBlueTarget);
+  m_colorMatcher.AddColorMatch(kGreenTarget);
+  m_colorMatcher.AddColorMatch(kRedTarget);
+  m_colorMatcher.AddColorMatch(kYellowTarget);
+  isReal = Real;
+  OutputTable->PutNumber(name + "-Color", 0);
+  OutputTable->PutNumber(name + "-Distance", 0);
 }
 
+//Returns a color object that best matched the color the sensor is looking at
 frc::Color REVColorSensorV3::GetColor(){
-	frc::Color input = (Color->GetColor()); 
-	return input;
+  if(isReal)
+  {
+	  frc::Color input = (Color->GetColor()); 
+	  return input;
+  }
+  else
+  {
+    double ColorVal = REVColorSensorV3::Get();
+    if(ColorVal == 1)
+    {
+      return kBlueTarget;
+    }
+    else if(ColorVal == 2)
+    {
+      return kRedTarget;
+    }
+    else if(ColorVal == 3)
+    {
+      return kGreenTarget;
+    }
+    else if(ColorVal == 4)
+    {
+      return kYellowTarget;
+    }
+    else
+    {
+      return kBlack;
+    }
+  }
 }
 
+//Returns the distance the object is from the color sensor by using how bright the light reflecting off the surface is
 uint32_t REVColorSensorV3::GetProximity(){
+  if(isReal)
+  {
     uint32_t input = ((uint32_t)Color->GetProximity());
     return input;
-
+  }
+  else
+  {
+    return ((1 / (OutputTable->GetNumber(name + "-Distance", 0) + 1)) * 2047) - 1; 
+  }
 }
 
+//Returns the name of the component
 string REVColorSensorV3::GetName(){
 	return name;
 }
 
+//Returns a number that corresponds to a color that best matches the color the sensor is seeing
 double REVColorSensorV3::Get(){
 
+  if(isReal)
+  {
   string colorString = "";
     double Conf = 0.0;
     frc::Color matchedColor = m_colorMatcher.MatchClosestColor(GetColor(), Conf);
     
   if (matchedColor == kBlueTarget) {
-      colorString = "Blue"; 
+      return 1;
     }
      else if (matchedColor == kRedTarget) {
-      colorString = "Red";
+      return 2;
     } 
     else if (matchedColor == kGreenTarget) {
-      colorString = "Green";
+      return 3;
     }
      else if (matchedColor == kYellowTarget) {
-      colorString = "Yellow";
+      return 4;
     }
      else {
-      colorString = "Unknown";
+      return 0;
     }
-
-  int Color = 0;
-  string C = colorString;
-  if(C == "Blue")
-  {
-    Color = 1;
   }
-  else if(C == "Red")
+  else
   {
-    Color = 2;
+    return OutputTable->GetNumber(name + "-Color", 0);
   }
-  else if(C == "Green")
-  {
-    Color = 3;
-  }
-  else if(C == "Yellow")
-  {
-    Color = 4;
-  }
-  return Color;
 }
 
+/*
+The delete component is just a way to clean up space (it was used for quickload so we dont get dups of objects)
+*/
 void REVColorSensorV3::DeleteComponent()
 {
   delete Color;
   delete this;
 }
 
+//Method that is called by the ActiveCollection
 void REVColorSensorV3::UpdateComponent()
 {
   if (!UseTable)
 	{
 		OutputTable->PutNumber(name + "-Color", REVColorSensorV3::Get());
+	}
+  frc::Color detectedColor = Color->GetColor();
+  if(PrintOut)
+	{
+		Log::General("````````````````````````````" + name + " value: " + to_string(Get()) + " current color = R: " + to_string(detectedColor.red) + ", G: " + to_string(detectedColor.green) + ", B: " + to_string(detectedColor.blue) + " \nDistance: " + to_string(Color->GetProximity()));
 	}
 }
 

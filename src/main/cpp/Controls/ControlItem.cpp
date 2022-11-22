@@ -6,8 +6,8 @@ Project:     BroncBotzFRC2019
 Copyright (c) BroncBotz.
 All rights reserved.
 
-Author(s):	Dylan Watson
-Email:	dylantrwatson@gmail.com
+Author(s):	Dylan Watson, Ian Poll
+Email:	dylantrwatson@gmail.com, irobot9803@gmail.com
 \*********************************************************************/
 
 #include <iostream>
@@ -15,6 +15,8 @@ Email:	dylantrwatson@gmail.com
 #include "ControlItem.h"
 #include "GoalButtonControl.h"
 #include "GoalAxisControl.h"
+#include "POVGoalControl.h"
+#include "ComboControl.h"
 #include "SwerveControl.h"
 #include "../Goals/GoalSelector.h"
 #include "../Goals/FRC_Goals.h"
@@ -29,68 +31,15 @@ auto onControllerValueChanged = [&](EventArgs* e) {
 		if (e->Type == 0)
 		{
 			auto args = (TEventArgs<double, ControlItem*>*)e;
-			Log::General(" EVENT "+args->GetSender()->name);
+			//Log::General(" EVENT "+args->GetSender()->name);
 
-			//If the sender is a GoalButtonControl
-			if (dynamic_cast<GoalButtonControl*>(args->GetSender())) {
-
-				MultitaskGoal* Selected = nullptr;
-
-				if(args->GetSender()->Holder == ControlItem::JoystickHolder::DriverController)
-				{
-					Selected = args->GetSender()->m_activeCollection->GetDriverGoal();
-				}
-				else if(args->GetSender()->Holder == ControlItem::JoystickHolder::OperatorController)
-				{
-					Selected = args->GetSender()->m_activeCollection->GetOperatorGoal();
-				}
-				else
-				{
-					Selected = args->GetSender()->m_activeCollection->GetRobotGoal();
-				}
-
-				for(int i = 0; i < ((GoalButtonControl*)(args->GetSender()))->RemoveKeys.size(); i++)
-				{
-					Selected->RemoveGoal(((GoalButtonControl*)(args->GetSender()))->RemoveKeys.at(i));
-				}
-				TeleOpGoal goal = ((GoalButtonControl*)(args->GetSender()))->m_goal;
-				SmartDashboard::PutString("GoalButtonControl Status", "Control Found");
-				Goal* goalToAdd = SelectTeleOpGoal(args->GetSender()->m_activeCollection, goal, args->GetValue());
-				Goal* OverGoal = new Goal_ControllerOverride(args->GetSender()->m_activeCollection, 1);
-				OverGoal->IdentityKey = ((GoalButtonControl*)(args->GetSender()))->IdKey;
-				goalToAdd->IdentityKey = ((GoalButtonControl*)(args->GetSender()))->IdKey;
-				Selected->AddGoal(goalToAdd);
-				goalToAdd->Activate();
-				OverGoal->Activate();
-				SmartDashboard::PutString("GoalButtonControl Status", "GoalActivated");
-
-				/*
-				//Reset the active TeleOpGoal
-				args->GetSender()->m_activeCollection->GetActiveGoal()->Reset();
-				TeleOpGoal goal = ((GoalButtonControl*)(args->GetSender()))->m_goal;
-				SmartDashboard::PutString("GoalButtonControl Status", "Control Found");
-				//Convert from TeleOpGoal[enum] to a Goal[class]
-				Goal* goalToAdd = SelectTeleOpGoal(args->GetSender()->m_activeCollection, goal, args->GetValue());
-				MultitaskGoal* teleOpMasterGoal = args->GetSender()->m_activeCollection->GetActiveGoal();
-				//Add in a timeout and ControllerOverride to the the Multitask Goal
-				//TODO: HOLY CRAP REENABLE THIS
-				//teleOpMasterGoal->AddGoal(new Goal_TimeOut(args->GetSender()->m_activeCollection, 7));
-				teleOpMasterGoal->AddGoal(new Goal_ControllerOverride(args->GetSender()->m_activeCollection, 1));
-				teleOpMasterGoal->AddGoal(goalToAdd);
-				//Set and activate the TeleOp Goal
-				args->GetSender()->m_activeCollection->SetActiveGoal(teleOpMasterGoal);
-				args->GetSender()->m_activeCollection->GetActiveGoal()->Activate();
-				((GoalButtonControl*)(args->GetSender()))->m_goalSet = true;
-				SmartDashboard::PutString("GoalButtonControl Status", "GoalActivated");*/
-				return;
-			}
-			args->GetSender()->SetToComponents(args->GetValue());
+			args->GetSender()->SetToComponents(args->GetValue(), (int)args->GetMode());
 			SmartDashboard::PutNumber(args->GetSender()->name, args->GetValue());
 		}
 		else if (e->Type == 1)
 		{
 			auto SwerveArgs = (IEventArgs<double, double, double, ControlItem*>*)e;
-			Log::General(" EVENT "+SwerveArgs->GetSender()->name);
+			//Log::General(" EVENT "+SwerveArgs->GetSender()->name);
 
 			SwerveControl *DT = (SwerveControl*)(SwerveArgs->GetSender());
 			DT->GetManager()->Set(SwerveArgs->GetVValue(), SwerveArgs->GetHValue(), SwerveArgs->GetSValue());
@@ -100,39 +49,38 @@ auto onControllerValueChanged = [&](EventArgs* e) {
 		else if (e->Type == 2)
 		{
 			auto args = (LEventArgs<vector<double>, vector<string>, ControlItem*>*)e;
-			Log::General(" EVENT "+args->GetSender()->name);
+			//Log::General(" EVENT "+args->GetSender()->name);
+			MultitaskGoal* Selected = nullptr;
 
-			//If the sender is a GoalButtonControl
+			if(args->GetSender()->Holder == ControlItem::JoystickHolder::DriverController)
+			{
+				Selected = args->GetSender()->m_activeCollection->GetDriverGoal();
+			}
+			else if(args->GetSender()->Holder == ControlItem::JoystickHolder::OperatorController)
+			{
+				Selected = args->GetSender()->m_activeCollection->GetOperatorGoal();
+			}
+			else
+			{
+				Selected = args->GetSender()->m_activeCollection->GetRobotGoal();
+			}
+
+			//If the sender is a GoalAxisControl
 			if (dynamic_cast<GoalAxisControl*>(args->GetSender()))
 			{
-
-				MultitaskGoal* Selected = nullptr;
-
-				if(args->GetSender()->Holder == ControlItem::JoystickHolder::DriverController)
-				{
-					Selected = args->GetSender()->m_activeCollection->GetDriverGoal();
-				}
-				else if(args->GetSender()->Holder == ControlItem::JoystickHolder::OperatorController)
-				{
-					Selected = args->GetSender()->m_activeCollection->GetOperatorGoal();
-				}
-				else
-				{
-					Selected = args->GetSender()->m_activeCollection->GetRobotGoal();
-				}
-				Goal* ControlGoal = Selected->GetGoal(((GoalAxisControl*)(args->GetSender()))->IdKey);
+				Goal* ControlGoal = Selected->GetGoal(abs(((GoalAxisControl*)(args->GetSender()))->IdKey));
 				if(ControlGoal == nullptr)
 				{
 					for(int i = 0; i < ((GoalAxisControl*)(args->GetSender()))->RemoveKeys.size(); i++)
 					{
-						Selected->RemoveGoal(((GoalAxisControl*)(args->GetSender()))->RemoveKeys.at(i));
+						Selected->RemoveGoal(abs(((GoalAxisControl*)(args->GetSender()))->RemoveKeys.at(i)));
 					}
 					TeleOpGoal goal = ((GoalAxisControl*)(args->GetSender()))->m_goal;
 					SmartDashboard::PutString("GoalAxisControl Status", "Control Found");
 					Goal* goalToAdd = SelectTeleOpGoal(args->GetSender()->m_activeCollection, goal);
 					//Goal* OverGoal = new Goal_ControllerOverride(args->GetSender()->m_activeCollection, 1);
 					//OverGoal->IdentityKey = ((GoalButtonControl*)(args->GetSender()))->IdKey;
-					goalToAdd->IdentityKey = ((GoalAxisControl*)(args->GetSender()))->IdKey;
+					goalToAdd->IdentityKey = abs(((GoalAxisControl*)(args->GetSender()))->IdKey);
 					goalToAdd->CopyStringFrom(args->GetStrings(), 0);
 					goalToAdd->CopyFrom(args->GetValues(), ((GoalAxisControl*)(args->GetSender()))->StartIndex);
 					Selected->AddGoal(goalToAdd);
@@ -147,6 +95,99 @@ auto onControllerValueChanged = [&](EventArgs* e) {
 						ControlGoal->Activate();
 				}
 				SmartDashboard::PutString("GoalAxisControl Status", "GoalActivated");
+				return;
+			}
+			else if (dynamic_cast<GoalButtonControl*>(args->GetSender()))
+			{
+				Goal* ControlGoal = Selected->GetGoal(abs(((GoalButtonControl*)(args->GetSender()))->IdKey));
+				if(ControlGoal == nullptr)
+				{
+					for(int i = 0; i < ((GoalButtonControl*)(args->GetSender()))->RemoveKeys.size(); i++)
+					{
+						Selected->RemoveGoal(abs(((GoalButtonControl*)(args->GetSender()))->RemoveKeys.at(i)));
+					}
+					TeleOpGoal goal = ((GoalButtonControl*)(args->GetSender()))->m_goal;
+					SmartDashboard::PutString("GoalButtonControl Status", "Control Found");
+					Goal* goalToAdd = SelectTeleOpGoal(args->GetSender()->m_activeCollection, goal, args->GetValues().at(0));
+					//Goal* OverGoal = new Goal_ControllerOverride(args->GetSender()->m_activeCollection, 1);
+					//OverGoal->IdentityKey = ((GoalButtonControl*)(args->GetSender()))->IdKey;
+					goalToAdd->IdentityKey = abs(((GoalButtonControl*)(args->GetSender()))->IdKey);
+					goalToAdd->CopyStringFrom(args->GetStrings(), 0);
+					goalToAdd->CopyFrom(args->GetValues(), ((GoalButtonControl*)(args->GetSender()))->StartIndex);
+					Selected->AddGoal(goalToAdd);
+					goalToAdd->Activate();
+					//OverGoal->Activate();
+					SmartDashboard::PutString("GoalButtonControl Status", "GoalActivated");
+				}
+				else
+				{
+					ControlGoal->CopyStringFrom(args->GetStrings(), 0);
+					ControlGoal->CopyFrom(args->GetValues(), ((GoalButtonControl*)(args->GetSender()))->StartIndex);
+					if(ControlGoal->GetStatus() == Goal::Goal_Status::eCompleted && ((GoalButtonControl*)(args->GetSender()))->RepeatWhenFinished)
+						ControlGoal->Activate();
+				}
+				return;
+			}
+			else if (dynamic_cast<POVGoalControl*>(args->GetSender()))
+			{
+				Goal* ControlGoal = Selected->GetGoal(abs(((POVGoalControl*)(args->GetSender()))->IdKey));
+				if(ControlGoal == nullptr)
+				{
+					for(int i = 0; i < ((POVGoalControl*)(args->GetSender()))->RemoveKeys.size(); i++)
+					{
+						Selected->RemoveGoal(abs(((POVGoalControl*)(args->GetSender()))->RemoveKeys.at(i)));
+					}
+					TeleOpGoal goal = ((POVGoalControl*)(args->GetSender()))->m_goal;
+					SmartDashboard::PutString("POVGoalControl Status", "Control Found");
+					Goal* goalToAdd = SelectTeleOpGoal(args->GetSender()->m_activeCollection, goal);
+					//Goal* OverGoal = new Goal_ControllerOverride(args->GetSender()->m_activeCollection, 1);
+					//OverGoal->IdentityKey = ((GoalButtonControl*)(args->GetSender()))->IdKey;
+					goalToAdd->IdentityKey = abs(((POVGoalControl*)(args->GetSender()))->IdKey);
+					goalToAdd->CopyStringFrom(args->GetStrings(), 0);
+					goalToAdd->CopyFrom(args->GetValues(), ((POVGoalControl*)(args->GetSender()))->StartIndex);
+					Selected->AddGoal(goalToAdd);
+					goalToAdd->Activate();
+					//OverGoal->Activate();
+				}
+				else
+				{
+					ControlGoal->CopyStringFrom(args->GetStrings(), 0);
+					ControlGoal->CopyFrom(args->GetValues(), ((POVGoalControl*)(args->GetSender()))->StartIndex);
+					if(ControlGoal->GetStatus() == Goal::Goal_Status::eCompleted && ((POVGoalControl*)(args->GetSender()))->RepeatWhenFinished)
+						ControlGoal->Activate();
+				}
+				SmartDashboard::PutString("POVGoalControl Status", "GoalActivated");
+				return;
+			}
+			else if (dynamic_cast<ComboControl*>(args->GetSender()))
+			{
+				Goal* ControlGoal = Selected->GetGoal(abs(((ComboControl*)(args->GetSender()))->IdKey));
+				if(ControlGoal == nullptr)
+				{
+					for(int i = 0; i < ((ComboControl*)(args->GetSender()))->RemoveKeys.size(); i++)
+					{
+						Selected->RemoveGoal(abs(((ComboControl*)(args->GetSender()))->RemoveKeys.at(i)));
+					}
+					TeleOpGoal goal = ((ComboControl*)(args->GetSender()))->m_goal;
+					SmartDashboard::PutString("ComboControl Status", "Control Found");
+					Goal* goalToAdd = SelectTeleOpGoal(args->GetSender()->m_activeCollection, goal);
+					//Goal* OverGoal = new Goal_ControllerOverride(args->GetSender()->m_activeCollection, 1);
+					//OverGoal->IdentityKey = ((GoalButtonControl*)(args->GetSender()))->IdKey;
+					goalToAdd->IdentityKey = abs(((ComboControl*)(args->GetSender()))->IdKey);
+					goalToAdd->CopyStringFrom(args->GetStrings(), 0);
+					goalToAdd->CopyFrom(args->GetValues(), ((ComboControl*)(args->GetSender()))->StartIndex);
+					Selected->AddGoal(goalToAdd);
+					goalToAdd->Activate();
+					//OverGoal->Activate();
+				}
+				else
+				{
+					ControlGoal->CopyStringFrom(args->GetStrings(), 0);
+					ControlGoal->CopyFrom(args->GetValues(), ((ComboControl*)(args->GetSender()))->StartIndex);
+					if(ControlGoal->GetStatus() == Goal::Goal_Status::eCompleted && ((ComboControl*)(args->GetSender()))->RepeatWhenFinished)
+						ControlGoal->Activate();
+				}
+				SmartDashboard::PutString("ComboControl Status", "GoalActivated");
 				return;
 			}
 			args->GetSender()->SetToComponents(args->GetValues().at(0));
@@ -198,12 +239,36 @@ vector<string> ControlItem::GetComponents()
 	return componentNames;
 }
 
-void ControlItem::SetToComponents(double val)
+void ControlItem::SetToComponents(double val, int Mode)
 {
 	try
 	{
 		for(int i=0; i<(int)components.size();i++)
-			(*components[i]).Set(val);
+		{
+			if(dynamic_cast<Motor*>(components[i]))
+			{
+				if(Mode == 1)
+				{
+					((Motor*)components[i])->SetPower(val);
+				}
+				else if(Mode == 2)
+				{
+					((Motor*)components[i])->SetSpeed(val);
+				}
+				else if(Mode == 3)
+				{
+					((Motor*)components[i])->SetPosition(val);
+				}
+				else
+				{
+					((Motor*)components[i])->SetPercent(val);
+				}
+			}
+			else
+			{
+				(*components[i]).Set(val);
+			}
+		}
 	}
 	catch(...)
 	{

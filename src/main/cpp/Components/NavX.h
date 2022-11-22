@@ -20,6 +20,13 @@ Email: dylantrwatson@gmail.com
 namespace Components{
 class NavX : public AHRS, public NativeComponent{
 public:
+	enum AxisAngle
+	{
+		Y_Axis = 0,
+		X_Axis = 1,
+		Z_Axis = 2
+	};
+
 	NavX() : AHRS(SerialPort::Port::kMXP, AHRS::SerialDataType::kProcessedData, 50), NativeComponent("NavX"){GetLast();}
 	NavX(bool Fake) : AHRS(SerialPort::Port::kMXP, AHRS::SerialDataType::kProcessedData, 50), NativeComponent("NavX"){if(Fake){FakeRun = true; SetUP(); GetLast();}}
 	NavX(SPI::Port spiPortId, uint8_t updateRateHz) : AHRS(spiPortId, updateRateHz), NativeComponent("NavX"){GetLast();}
@@ -28,26 +35,62 @@ public:
 	NavX(SerialPort::Port serialPortId, SerialDataType dataType, uint8_t updateRateHz) : AHRS(serialPortId, dataType, updateRateHz), NativeComponent("NavX"){GetLast();}
 	NavX* GetRawComponent(){return this;}
 	virtual ~NavX(){}
-	double GetNavXAngle(){
+	double GetNavXAngle(AxisAngle Axis = AxisAngle::Y_Axis){
 		if (FakeRun)
 		{
+			switch (Axis)
+			{
+				case AxisAngle::Y_Axis:
+					return OutputTable->GetNumber("NavX-Y", 0);
+				break;
+
+				case AxisAngle::X_Axis:
+					return OutputTable->GetNumber("NavX-X", 0);
+				break;
+
+				case AxisAngle::Z_Axis:
+					return OutputTable->GetNumber("NavX-Z", 0);
+				break;
+			
+				default:
+					break;
+			}
 			return OutputTable->GetNumber("NavX-Y", 0);
 		}
 		else
 		{
-			double angle = GetAngle();
+			double angle = 0;
+			switch (Axis)
+			{
+				case AxisAngle::Y_Axis:
+					angle = GetYaw();
+				break;
+
+				case AxisAngle::X_Axis:
+					angle = GetPitch();
+				break;
+
+				case AxisAngle::Z_Axis:
+					angle = GetRoll();
+				break;
+			
+				default:
+					break;
+			}
 			return angle;
 		}
 	}
 
-	double GetConstAngle()
+	double GetConstAngle(AxisAngle Axis = AxisAngle::Y_Axis)
 	{
-		return GetNavXAngle() - RefAngle;
+		return GetNavXAngle(Axis) - (Axis == AxisAngle::Y_Axis ? RefAngleY : (Axis == AxisAngle::X_Axis ? RefAngleX : RefAngleZ));
 	}
 
 	void ResetNav()
 	{
-		RefAngle = GetConstAngle();
+		RefAngleY = GetConstAngle(AxisAngle::Y_Axis);
+		RefAngleX = GetConstAngle(AxisAngle::X_Axis);
+		RefAngleZ = GetConstAngle(AxisAngle::Z_Axis);
 		Reset();
 		ResetFakeNav();
 	}
@@ -63,10 +106,38 @@ public:
 		OutputTable->PutNumber("NavX-X", GetPitch());
 		OutputTable->PutNumber("NavX-Z", GetRoll());
 	}
+
+	/*
+	The delete component is just a way to clean up space (it was used for quickload so we dont get dups of objects)
+	*/
 	virtual void DeleteComponent() {delete this;};
+
+	void OutPrint()
+	{
+		Log::General("NavX:<Angle>==>  Y Axis: " + to_string(GetNavXAngle(AxisAngle::Y_Axis)) + "   X Axis: " + to_string(GetNavXAngle(AxisAngle::X_Axis)) + "   Z Axis: " + to_string(GetNavXAngle(AxisAngle::Z_Axis)));
+	}
+
+	void SetReturn(AxisAngle Angle, bool Const = false)
+	{
+		ReturnAngle = Angle;
+		ConstantA = Const;
+	}
+
+	virtual double GetValue() override
+	{
+		if(ConstantA)
+			return GetConstAngle(ReturnAngle);
+		else
+			return GetNavXAngle(ReturnAngle);
+	}
+
 private:
 	bool FakeRun = false;
-	double RefAngle = 0;
+	double RefAngleY = 0;
+	double RefAngleX = 0;
+	double RefAngleZ = 0;
+	AxisAngle ReturnAngle;
+	bool ConstantA = false;
 	void SetUP()
 	{
 		OutputTable->PutNumber("NavX-Y", 0);
@@ -76,7 +147,9 @@ private:
 	}
 	void GetLast()
 	{
-		RefAngle = OutputTable->GetNumber("NavX-Y", 0);
+		RefAngleY = OutputTable->GetNumber("NavX-Y", 0);
+		RefAngleX = OutputTable->GetNumber("NavX-X", 0);
+		RefAngleZ = OutputTable->GetNumber("NavX-Z", 0);
 	}
 };
 	

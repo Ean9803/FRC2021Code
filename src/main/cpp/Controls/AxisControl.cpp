@@ -6,8 +6,8 @@ Project:     BroncBotzFRC2019
 Copyright (c) BroncBotz.
 All rights reserved.
 
-Author(s):	Dylan Watson
-Email:	dylantrwatson@gmail.com
+Author(s):	Dylan Watson, Ian Poll
+Email:	dylantrwatson@gmail.com, irobot9803@gmail.com
 \*********************************************************************/
 
 
@@ -24,99 +24,47 @@ using namespace Components;
 
 AxisControl::AxisControl() { }
 
-AxisControl::AxisControl(Joystick *_joy, string _name, int _axis, double _deadZone, bool _reversed, double _powerMultiplier, ActiveCollection* ac, bool _useOverdrive)
+AxisControl::AxisControl(Joystick *_joy, string _name, int _axis, double _deadZone, bool _reversed, double _powerMultiplier, ActiveCollection* ac, int Mode, bool _useOverdrive)
 	: ControlItem(_joy, _name, _reversed, _powerMultiplier, ac)
 {
 	axis = _axis;
 	deadZone = _deadZone;
 	isLift = false;
 	m_activeCollection = ac;
-	useOverdrive = _useOverdrive;
+	Overdrive = _useOverdrive;
+	this->Mode = Mode;
+	reversed = _reversed;
+	Mult = _powerMultiplier;
 }
 
 double AxisControl::Update(double _dTime)
 {
-	double raw = (*joy).GetRawAxis(axis);
-	if (!(abs(raw) > deadZone))
+	double Val = GetAxis(vector<int> {abs(axis)}).at(0) * (Mult) * (reversed ? -1 : 1) * Sign(axis);
+	
+	if(abs(Val) > deadZone)
 	{
-		if(!isLift){
-			if (abs(currentPow) > EPSILON_MIN)
-				ValueChanged(new TEventArgs<double, AxisControl*>(0, this));
-			currentPow = 0;
-			previousPow = currentPow;
-			return currentPow;
+		if(Overdrive)
+		{
+			if(abs(Val) > 0.95)
+				ValueChanged(new TEventArgs<double, AxisControl*>(Sign(Val) * 1, this, (TEventArgs<double, AxisControl*>::ControlPowerMode)0));
+			else
+				ValueChanged(new TEventArgs<double, AxisControl*>(Val, this, (TEventArgs<double, AxisControl*>::ControlPowerMode)Mode));
 		}
-		else if(!(m_activeCollection->GetRobotGoal()->GetStatus() == Goal::eActive)){
-			double currentVal = ((PotentiometerItem*)m_activeCollection->Get("pot"))->Get();
-			//TODO: Use PID. This is a last minute fix that just happens to work
-			#if 0
-			if(!isIdle){
-				targetVal = currentVal;
-				isIdle = true;
-				return currentPow;
-				Log::General("!isIdle", true);
-				SmartDashboard::PutBoolean("IS WORKING", true);
-			}
-			double err = (targetVal - currentVal);
-			Log::General("error: " + to_string(err));
-			currentPow = err * gane;
-			Log::General("SETTING CURRENT POW: " + to_string(currentPow));
-			#endif
-			//This is one of the only areas where the ValueChanged event is NOT called, as it would be called even when the operator 
-			//is not doing anything, which would ruin ControllerOverride
-			SetToComponents(bias);
-			return currentPow;
-		}
-		return currentPow;
-	}
-	else{
-		isIdle = false;
-	}
-	double dz = deadZone + MINIMUM_JOYSTICK_RETURN;
-	double val = ((abs(raw) - dz) * (pow(1-dz, -1)) * getSign(raw)) * powerMultiplier;
-
-	bool overdrive = m_activeCollection->GetOverdrive();
-	if(useOverdrive && overdrive && abs(raw) > .95)
-	{
-		overdriveModifier += .01;
-		if(overdriveModifier > 1.0 - powerMultiplier) overdriveModifier = 1.0 - powerMultiplier;
+		else
+			ValueChanged(new TEventArgs<double, AxisControl*>(Val, this, (TEventArgs<double, AxisControl*>::ControlPowerMode)Mode));
 	}
 	else
 	{
-		if(overdriveModifier > 0)
-			overdriveModifier -= .01;
-		if(overdriveModifier < 0)
-			overdriveModifier = 0;
+		if(isLift)
+			ValueChanged(new TEventArgs<double, AxisControl*>(gane, this, (TEventArgs<double, AxisControl*>::ControlPowerMode)Mode));
+		else
+			ValueChanged(new TEventArgs<double, AxisControl*>(0, this, (TEventArgs<double, AxisControl*>::ControlPowerMode)Mode));
 	}
-	double signedOverdriveModifier = overdriveModifier * getSign(raw);
-	
-	
-	if(reversed)
+	if(PrintOut)
 	{
-		val = -val;
-		signedOverdriveModifier = -signedOverdriveModifier;
+		Log::General("````````````````````````````" + name + " value: " + to_string(abs(Val) > deadZone ? Val : 0));
 	}
-		
-	currentPow = val + signedOverdriveModifier;
-	if(abs(previousPow - currentPow) < EPSILON_MIN)
-		return currentPow;
-	previousPow = currentPow;
-	ValueChanged(new TEventArgs<double, AxisControl*>(currentPow, this));
-	return currentPow;
-}
-
-int AxisControl::getSign(double val)
-{
-	if(val < 0)
-		return -1;
-	else if(val > 0)
-		return 1;
-	else if(val == 0)
-		return 0;
-	else{
-		Log::Error("Something is very broken in the getSign Method in AxisControl...");
-		return 0;
-	}
+	return abs(Val) > deadZone ? Val : 0;
 }
 
 void AxisControl::SetLift(double _gane, ActiveCollection* activeCollection){

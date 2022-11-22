@@ -105,44 +105,64 @@ static vector<double> backupPath(string Path)
     return InputBackupPoints;
 }
 
-static Auto Map(string Path)
+static Auto Map(string Path, bool Offset)
 {
     ifstream Inputfile (Path);
     string NumberInput;
     if(Inputfile.is_open())
     {
-        Log::General("Found File");
+        Log::General("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%Found File%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
         vector<double> InputPoints;
         getline(Inputfile, NumberInput);
-        double Length = stod(NumberInput);
+        double Length = (stod(NumberInput) - 1) / NumPoints;
+        Log::General("Lenght: " + to_string(Length));
         for(int i = 0; i < (Length * NumPoints); i++)
         {
             getline(Inputfile, NumberInput);
             InputPoints.push_back(stod(NumberInput));
             Log::General("Line: " + to_string(i) + " = " + to_string(stod(NumberInput)));
         }
-        return Auto(Length, InputPoints);
+        return Auto(Length, InputPoints, Offset);
     }
     else
     {
-        ifstream DudFile("Dud.txt");
-        if (DudFile.is_open())
+        string PathF = "src/main/cpp/Autos/Paths/" + Path;
+        ifstream SimFile(PathF);
+        if (SimFile.is_open())
         {
-            Log::Error("File does not exist, using Dud.txt");
-            vector<double> InputDudPoints;
-            getline(DudFile, NumberInput);
+            Log::General("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%Found File%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
+            vector<double> InputPoints;
+            getline(SimFile, NumberInput);
             double Length = stod(NumberInput);
-            for(int i = 0; i < Length * NumPoints; i++)
+            for(int i = 0; i < (Length * NumPoints); i++)
             {
-                getline(DudFile, NumberInput);
-                InputDudPoints.push_back(stod(NumberInput));
+                getline(SimFile, NumberInput);
+                InputPoints.push_back(stod(NumberInput));
+                Log::General("Line: " + to_string(i) + " = " + to_string(stod(NumberInput)));
             }
-            return Auto(Length, InputDudPoints);
+            return Auto(Length, InputPoints, Offset);
+        }
+        else
+        {
+            ifstream DudFile("Dud.txt");
+            if (DudFile.is_open())
+            {
+                Log::Error("File does not exist, using Dud.txt");
+                vector<double> InputDudPoints;
+                getline(DudFile, NumberInput);
+                double Length = stod(NumberInput);
+                for(int i = 0; i < (Length * NumPoints); i++)
+                {
+                    getline(DudFile, NumberInput);
+                    InputDudPoints.push_back(stod(NumberInput));
+                }
+                return Auto(Length, InputDudPoints);
+            }
         }
     }
     Log::Error("Files don't not exist, using backup Path");
     vector<double> InputBack = backupPath(Path.substr(0, Path.length() - 4));
-    return Auto(InputBack.size() / NumPoints, InputBack, true);
+    return Auto(InputBack.size() / NumPoints, InputBack, Offset);
 }
 
 #endif /* UTIL_LinePaths_H_ */

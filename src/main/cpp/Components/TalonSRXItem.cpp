@@ -20,7 +20,7 @@ using namespace frc;
 using namespace Components;
 
 TalonSRXItem::TalonSRXItem() {}
-
+//Constructor used by config
 TalonSRXItem::TalonSRXItem(int _channel, string _name, bool _reversed, bool enableEncoder, bool Real)
 	: Motor(_name, _reversed){
 	channel = _channel;
@@ -40,16 +40,19 @@ TalonSRXItem::TalonSRXItem(int _channel, string _name, bool _reversed, bool enab
 	}
 }
 
+//Get current motor power percent
 double TalonSRXItem::Get(){
     if (reversed)
         return talon->GetMotorOutputPercent() * -1;
     return talon->GetMotorOutputPercent();
 }
 
+//Returns encoder position
 int TalonSRXItem::GetQuadraturePosition(){
 	return (encoderEnabled ? (UseTable ? OutputTable->GetNumber(name + "-Encoder", 0) : talon->GetSensorCollection().GetQuadraturePosition()) : -1) - Offset;
 }
 
+//Used to reset encoder
 void TalonSRXItem::SetQuadraturePosition(int val){
 	talon->GetSensorCollection().SetQuadraturePosition(val, 10);
 	if (UseTable)
@@ -70,9 +73,9 @@ void TalonSRXItem::sim_SetQuadratureVelocity(double newRate_s)
 	talon->GetSimCollection().SetQuadratureVelocity((int)(newRate_s*10.0));
 }
 
+//Used to set power to the motor
 void TalonSRXItem::Set(double val){
 	val = CalculateVal(val);
-	//Log::General(name+" : "  + to_string(val));
 	if((val<0 || val>0) && !inUse)
 	{
 		inUse = true;
@@ -95,11 +98,15 @@ void TalonSRXItem::Set(DoubleSolenoid::Value value){
 	Log::Error("WHY DID YOU CALL THE DEFAULT SET FOR A MOTOR?!? Yell at your programmers!");
 }
 
+//Stops the motor
 void TalonSRXItem::Stop()
 {
-	TalonSRXItem::Set(0);
+	SetPercent(0);
 }
 
+/*
+The delete component is just a way to clean up space (it was used for quickload so we dont get dups of objects)
+*/
 void TalonSRXItem::DeleteComponent()
 {
 	CleanUpProfiles();
@@ -107,11 +114,16 @@ void TalonSRXItem::DeleteComponent()
 	delete this;
 }
 
+//Method that is called by the ActiveCollection
 void TalonSRXItem::UpdateComponent()
 {
 	if (!UseTable)
 	{
 		OutputTable->PutNumber(name + "-Encoder", TalonSRXItem::GetQuadraturePosition());
+	}
+	if(PrintOut)
+	{
+		Log::General("`````````````````````Motor: " + name + "    Power: " + to_string(TalonSRXItem::Get()) + "   Position: " + to_string(TalonSRXItem::GetQuadraturePosition()) + " Angle: " + to_string(GetAngle()));
 	}
 }
 

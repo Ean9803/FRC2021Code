@@ -7,14 +7,12 @@
     <Version version="1" />
     <!-- Comment on this particular config to be printed on the console -->
     <Comment comment="A" />
-    <!-- Sets time delay for each loop in Robot code-->
-    <Time seconds="0.01"/>
     <!-- Sets whether or not to initialize the NavX -->
-    <UseNavX value="true" />
+    <UseNavX value = "true" Return = "Y_Axis" Constant = "false" />
     <!-- Sets the Auto to run -->
     <Selected_Auto AutoName = "A1P2.txt" OverrideDS = "false" Scale = "1" Swerve = "true"/>
     <!-- Sets whether or not to initialize the camera to send back to the driver station -->
-    <limeLight/>
+    <limeLight TargetHeight = "100" Height = "40" Return = "Distance" />
     <!-- Sets color sensor name -->
     <ColorSensor name = "Color"/>
     <!-- Contains assignments to ports and robot dimensions -->
@@ -22,76 +20,86 @@
     
         <!-- Region for defining VictorSP Items -->
         <VictorSP>
-            <!--[Name] [int]channel [bool]reversed [int]pdbChannel [int]Group [double]LowerRate [double]RegenRate-->
+            <!--[Name] [int]channel [bool]reversed [bool]Print [double]Ticks [string]Return [double]Threshold [int]pdbChannel [int]Group [double]LowerRate [double]RegenRate-->
         </VictorSP>
 
         <!-- Region for VictorSPX CAN Items -->
         <VictorSPX>
-            <!--[Name] [int]channel [bool]reversed [int]pdbChannel [int]Group [double]LowerRate [double]RegenRate-->
+            <!--[Name] [int]channel [bool]reversed [bool]Print [double]Ticks [string]Return [double]Threshold [int]pdbChannel [int]Group [double]LowerRate [double]RegenRate-->
         </VictorSPX>
 
         <!-- Region for TalonSRX CAN Items -->
         <TalonSRX>
-            <!--[Name] [int]channel [bool]reversed [bool]enableEncoder [int]pdbChannel [int]Group [double]LowerRate [double]RegenRate-->
+            <!--[Name] [int]channel [bool]reversed [bool]enableEncoder [bool]Print [double]Ticks [string]Return [double]Threshold [int]pdbChannel [int]Group [double]LowerRate [double]RegenRate-->
         </TalonSRX>
 
         <!-- Region for SparkMax CAN Items -->
 		<SparkMax>
-            <!--[Name] [int]channel [bool]reversed [int]pdbChannel [int]Group [double]LowerRate [double]RegenRate-->
+            <!--[Name] [int]channel [bool]reversed [bool]Print [double]Ticks [string]Return [double]Threshold [int]pdbChannel [int]Group [double]LowerRate [double]RegenRate-->
 		</SparkMax>
 
         <!-- Region for Servo PWM Items -->
 		<Servo>
-            <!--[Name] [int]port [double]Max [string = Limited/Continuous]Type-->
+            <!--[Name] [int]port [double]Max [bool]Print [string = Limited/Continuous]Type-->
 		</Servo>
 
         <!-- Region for Potentiometers -->
         <Potentiometer>
-            <!--[Name] [int]channel-->
+            <!--[Name] [int]channel [bool]Print [double]Ticks [double]Threshold -->
         </Potentiometer>
 
         <!-- Region for Encoders -->
         <Encoder>
-            <!--[Name] [int]aChannel [int]bChannel [bool]reversed-->
+            <!--[Name] [int]aChannel [int]bChannel [bool]reversed [bool]Print [double]Ticks [double]Threshold -->
         </Encoder>
 
         <!-- Region for DoubleSolenoids -->
         <DoubleSolenoid>
-            <!--[Name] [int]fchannel [int]rChannel [bool]reversed [string = forward/reverse]default-->
+            <!--[Name] [int]fChannel [int]rChannel [bool]reversed [string = forward/reverse]default [bool]Print -->
 		</DoubleSolenoid>
 
         <!-- Region for DigitalInputs -->
         <DigitalInput>
-            <!--[Name] [int]channel-->
+            <!--[Name] [int]channel [bool]Print -->
         </DigitalInput>
 
         <!--Region for Swerve Modules-->
         <SwerveModules>
-            <!--[Name] [string]swivel [string]wheel [int]swivelTicks [int]wheelTicks [string]location-->
+            <!--[Name] [bool]Print [string]swivel [string]wheel [int]swivelTicks [int]wheelTicks [string = Front_Left/Front_Right/Back_Left/Back_Right]location-->
         </SwerveModules>
 
-        <!--SwerveManager [string]name [bool]wait [string list]modules [double]Max [double]length [double]width [double]WheelDiameter [double]Scale-->
+        <!--SwerveManager [bool]Print [string]name [bool]wait [string list]modules [double]Max [double]length [double]width [double]WheelDiameter [double]Scale-->
         <SwerveManager/>
+
+        <!--Region for Motor Link settings-->
+        <MotorLinks>
+            <!--[Name] [string]Motor [string]ChildMotor [double]Bias-->
+        </MotorLinks>
 
         <!--Region for PID settings-->
         <Profiles>
             <!--[Name] [double]P [double]I [double]D [double]Change [double]Bias [double]Min [double]Max [int]Index [double]IMin [double]IMax [double]Threshold-->
-        <Profiles/>
+        </Profiles>
 
         <!--Region for Power PID link settings-->
         <PowerLinks>
             <!--[Name] [string]Motor ([string]Profile/[int]ProfileIndex)-->
-        <PowerLinks/>
+        </PowerLinks>
 
         <!--Region for Position PID link settings-->
         <PositionLinks>
             <!--[Name] [string]Motor ([string]Profile/[int]ProfileIndex)-->
-        <PositionLinks/>
+        </PositionLinks>
+
+        <!--Region for PID in the ActiveCollection settings-->
+        <CollectionLinks>
+            <!--[Name] ([string]Profile/[int]ProfileIndex)-->
+        </CollectionLinks>
 
         <!--Region for Encoder-Motor link settings-->
         <EncoderLinks>
             <!--[Name] [string]Motor [string]Encoder-->
-        <EncoderLinks/>
+        </EncoderLinks>
     </RobotConfig>
 
     <!-- Root of all control definitions -->
@@ -101,60 +109,100 @@
 
             <!--Region for Axis control-->
             <AxisControls>
-                <!--[Name] [int]axis [bool]reversed [bool]useOverdrive [double]deadZone [double]powerMultiplier [bool]isLift [string list]bindings [bool]bindEvent-->
+                <!--[Name] [bool]Print [int]axis [bool]reversed [bool]useOverdrive [double]deadZone [double]powerMultiplier [int]mode [bool]isLift [string list]bindings [bool]bindEvent-->
 		    </AxisControls>
 
             <!--Region for Button control-->
             <ButtonControls>
-                <!--[Name] [int]button [bool]reversed [bool]actOnRelease [bool]isSolenoid [double]powerMultiplier [bool]isAmpLimited [bool]isRamp [bool]isOverdrive [string list]bindings [bool]bindEvent-->
+                <!--[Name] [bool]Print [int]button [bool]reversed [bool]actOnRelease [bool]isSolenoid [double]powerMultiplier [bool]isOverdrive [int]Mode [double]Hold [string list]bindings [bool]bindEvent-->
             </ButtonControls>
+
+            <!--Region for POV control-->
+            <POVControls>
+                <!--[Name] [bool]Print [int]Direction [int]ControlMode [int]Mode [double]powerMultiplier [string list]bindings [bool]bindEvent-->
+            </POVControls>
 
             <!--Region for toggle control-->
             <ToggleButtonControls>
-                <!--[Name] [int]button [bool]reversed [string list]bindings [bool]bindEvent-->
+                <!--[Name] [bool]Print [int]button [bool]reversed [double]powerMultiplier [string list]bindings [bool]bindEvent-->
             </ToggleButtonControls>
+
+            <!--Region for Servo control-->
+            <ServoControls>
+                <!--[Name] [bool]Print [int list]Buttons [double list]Angles [double list]POVs [int]Axis [int]Type [bool]cycle [double]Mult [bool]Inc [int]Mode [string list]bindings [bool]bindEvent-->
+            </ServoControls>
 
             <!--Region for goal buttons-->
             <GoalButtonControls>
-                <!--[Name] [int]button [string]goal [double]params [int]ID [int list]RemoveKeys [bool]bindEvent-->
+                <!--[Name] [bool]Print [int list]button [string]goal [bool]repeat [int]ID [int list]RemoveKeys [int]StartIndex [string list]StringData [string = onPress/onRelease/onBoth]State [double]mult [bool]bindEvent-->
             </GoalButtonControls>
 
             <!--Region for goal Axis-->
             <GoalAxisControls>
-                <!--[Name] [int list]Axis [string]goal [bool]repeat [int]ID [int list]RemoveKeys [int]StartIndex [string list]StringData [double]DeadZone [double]mult [bool]bindEvent-->
-            <GoalAxisControls/>
+                <!--[Name] [bool]Print [int list]Axis [string]goal [bool]repeat [int]ID [int list]RemoveKeys [int]StartIndex [string list]StringData [double]DeadZone [double]mult [bool]bindEvent-->
+            </GoalAxisControls>
+
+            <!--Region for goal POV-->
+            <POVGoalControls>
+                <!--[Name] [bool]Print [int]Direction [string]goal [bool]repeat [int]ID [int list]RemoveKeys [int]StartIndex [string list]StringData [int]Mode [int]State [double]mult [bool]bindEvent-->
+            </POVGoalControls>
 
             <!--Region for SwerveDrive Control-->
-            <!--SwerveControl [string = Field/Robot/Warthog/Field_Warthog]driveMode [string]name [int]H-Axis [int]V-Axis [int]S-Axis [double]deadZone [double]powerMultiplier [bool]reversed [string]manager-->
+            <!--SwerveControl [bool]Print [string = Field/Robot/Warthog]driveMode [string]name [int]H-Axis [int]V-Axis [int]S-Axis [double]deadZone [double]powerMultiplier [bool]reversed [string]manager-->
             <SwerveControl/>
+            
+            <!-- Region for combo controls -->
+            <ComboControls>
+                <!--[Name] [bool]Print [string list]ControlInput [double list]InputValues [string list]RobotInput [double list]RobotValues [string list]UseInput [bool]isGoal [string]Goal [int]ID [int]StartIndex [bool]Repeat [string list]StringData [int list]RemoveKeys [int]Mode [bool]FireOnce [string list]bindings [bool]bindEvent -->
+            </ComboControls>
         </Driver>
         <!-- Operator Controller, slot should always be 1 -->
 		<Operator slot="1">
 
 			<!--Region for Axis control-->
             <AxisControls>
-                <!--[Name] [int]axis [bool]reversed [bool]useOverdrive [double]deadZone [double]powerMultiplier [bool]isLift [string list]bindings [bool]bindEvent-->
+                <!--[Name] [bool]Print [int]axis [bool]reversed [bool]useOverdrive [double]deadZone [double]powerMultiplier [int]mode [bool]isLift [string list]bindings [bool]bindEvent-->
 		    </AxisControls>
 
             <!--Region for Button control-->
             <ButtonControls>
-                <!--[Name] [int]button [bool]reversed [bool]actOnRelease [bool]isSolenoid [double]powerMultiplier [bool]isAmpLimited [bool]isRamp [bool]isOverdrive [string list]bindings [bool]bindEvent-->
+                <!--[Name] [bool]Print [int]button [bool]reversed [bool]actOnRelease [bool]isSolenoid [double]powerMultiplier [bool]isOverdrive [int]Mode [double]Hold [string list]bindings [bool]bindEvent-->
             </ButtonControls>
+            
+            <!--Region for POV control-->
+            <POVControls>
+                <!--[Name] [bool]Print [int]Direction [int]ControlMode [int]Mode [double]powerMultiplier [string list]bindings [bool]bindEvent-->
+            </POVControls>
 
             <!--Region for toggle control-->
             <ToggleButtonControls>
-                <!--[Name] [int]button [bool]reversed [string list]bindings [bool]bindEvent-->
+                <!--[Name] [bool]Print [int]button [bool]reversed [double]powerMultiplier [string list]bindings [bool]bindEvent-->
             </ToggleButtonControls>
+
+            <!--Region for Servo control-->
+            <ServoControls>
+                <!--[Name] [bool]Print [int list]Buttons [double list]Angles [double list]POVs [int]Axis [int]Type [bool]cycle [double]Mult [bool]Inc [int]Mode [string list]bindings [bool]bindEvent-->
+            </ServoControls>
 
             <!--Region for goal buttons-->
             <GoalButtonControls>
-                <!--[Name] [int]button [string]goal [double]params [int]ID [int list]RemoveKeys [bool]bindEvent-->
+                <!--[Name] [bool]Print [int list]button [string]goal [bool]repeat [int]ID [int list]RemoveKeys [int]StartIndex [string list]StringData [string = onPress/onRelease/onBoth]State [double]mult [bool]bindEvent-->
             </GoalButtonControls>
 
             <!--Region for goal Axis-->
             <GoalAxisControls>
-                <!--[Name] [int list]Axis [string]goal [bool]repeat [int]ID [int list]RemoveKeys [int]StartIndex [string list]StringData [double]DeadZone [double]mult [bool]bindEvent-->
-            <GoalAxisControls/>
+                <!--[Name] [bool]Print [int list]Axis [string]goal [bool]repeat [int]ID [int list]RemoveKeys [int]StartIndex [string list]StringData [double]DeadZone [double]mult [bool]bindEvent-->
+            </GoalAxisControls>
+
+            <!--Region for goal POV-->
+            <POVGoalControls>
+                <!--[Name] [bool]Print [int]Direction [string]goal [bool]repeat [int]ID [int list]RemoveKeys [int]StartIndex [string list]StringData [int]Mode [int]State [double]mult [bool]bindEvent-->
+            </POVGoalControls>
+
+            <!-- Region for combo controls -->
+            <ComboControls>
+                <!--[Name] [bool]Print [string list]ControlInput [double list]InputValues [string list]RobotInput [double list]RobotValues [string list]UseInput [bool]isGoal [string]Goal [int]ID [int]StartIndex [bool]Repeat [string list]StringData [int list]RemoveKeys [int]Mode [bool]FireOnce [string list]bindings [bool]bindEvent -->
+            </ComboControls>
 		</Operator>
     </Controls>
     <RobotCameraServer enabled="false">

@@ -23,45 +23,50 @@ Drive::Drive(ActiveCollection* activeCollection) {
 
 void Drive::AddControlDrive(ControlItem *control)
 {
-	m_driveControlCollection.push_back(control);
+	m_activeCollection->AddDriverControl(control);
 }
 
 void Drive::AddControlOperate(ControlItem *control)
 {
-	m_operateControlCollection.push_back(control);
+	m_activeCollection->AddOperatorControl(control);
 }
 
+//Start teleop by enabling all controls except for dead controls stated in config
+void Drive::StartUp(vector<string> DeadControls)
+{
+	m_activeCollection->EnableAllControlsExcept(DeadControls);
+}
+
+//Start auto by disabling all controls except for the names in the list 
+void Drive::StartAuto(vector<string> EnableControls)
+{
+	m_activeCollection->DisableAllControlsExcept(EnableControls);
+}
+
+//Update components, PDB manager, and controls
 void Drive::Update(double deltaTime)
 {
 	if (m_activeCollection != nullptr)
 	{
 		m_activeCollection->ProcessSuperior_Goal(deltaTime);
+		m_activeCollection->UpdateComponents(deltaTime);
 		if (m_activeCollection->GetPDBManager() != nullptr)
 			m_activeCollection->GetPDBManager()->UpdatePDB();
 	}
 	if (!m_DisableDrive)
 	{
-		for (int i = 0; i < (int)m_driveControlCollection.size(); i++)
-			(*m_driveControlCollection[i]).Update(deltaTime);
+		m_activeCollection->UpdateDriver(deltaTime);
 	}
 	if (!m_DisableOperator)
 	{
-		for (int i = 0; i < (int)m_operateControlCollection.size(); i++)
-			(*m_operateControlCollection[i]).Update(deltaTime);
+		m_activeCollection->UpdateOperator(deltaTime);
 	}
 }
 
+//Clean up PDB object and check if any other components are active
 void Drive::DeleteAll()
 {
 	if (m_activeCollection->GetPDBManager() != nullptr)
 		m_activeCollection->GetPDBManager()->DeleteComponent();
-	m_activeCollection->UpdateComponents();
-	for (int i = 0; i < (int)m_driveControlCollection.size(); i++)
-		m_driveControlCollection[i]->DeleteComponent();
-	
-	for (int i = 0; i < (int)m_operateControlCollection.size(); i++)
-		m_operateControlCollection[i]->DeleteComponent();
-
-	m_operateControlCollection.clear();
-	m_driveControlCollection.clear();
+	m_activeCollection->UpdateComponents(0);
 }

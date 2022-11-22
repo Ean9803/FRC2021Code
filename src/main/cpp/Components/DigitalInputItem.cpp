@@ -15,6 +15,7 @@ Email: dylantrwatson@gmail.com
 
 using namespace Components;
 
+//Constructor used in config
 DigitalInputItem::DigitalInputItem(int _channel, string name, bool Real) : InputComponent(name)
 {
 	channel = _channel;
@@ -27,12 +28,16 @@ DigitalInputItem::DigitalInputItem(int _channel, string name, bool Real) : Input
 	}
 }
 
+/*
+The delete component is just a way to clean up space (it was used for quickload so we dont get dups of objects)
+*/
 void DigitalInputItem::DeleteComponent()
 {
 	delete din;
 	delete this;
 }
 
+//Returns the current value of the switch
 double DigitalInputItem::Get()
 {
 	if (!UseTable)
@@ -41,31 +46,28 @@ double DigitalInputItem::Get()
 		return 	OutputTable->GetBoolean(name, false) ? 0 : 1;
 }
 
+//Returns the current value of the switch as a bool
 bool DigitalInputItem::GetBool()
 {
-	//This is bad... no since in casting to a double and back into an int, and not all control paths return a value
-#if 0
-	int get = Get();
-	if(get == 1)
-		return false;
-	else if(get == 0)
-		return true;
-#else
-	//This follows the logic previously, and for some unknown value... its false
 	return din->Get() == 0;
-#endif
 }
 
+//Returns the name given in the config
 string DigitalInputItem::GetName()
 {
 	return name;
 }
 
+//Method called in each loop
 void DigitalInputItem::UpdateComponent()
 {
 	if (!UseTable)
 	{
 		OutputTable->PutBoolean(name, DigitalInputItem::GetBool());
+	}
+	if(PrintOut)
+	{
+		Log::General("````````````````````````````" + name + " value: " + to_string(Get()));
 	}
 }
 

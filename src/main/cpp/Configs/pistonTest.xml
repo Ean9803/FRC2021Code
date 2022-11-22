@@ -36,9 +36,7 @@
         <!-- Region for SparkMax CAN Items -->
 		<SparkMax>
             <!--[Name] [int]channel [bool]reversed [bool]Print [double]Ticks [string]Return [double]Threshold [int]pdbChannel [int]Group [double]LowerRate [double]RegenRate-->
-            
-
-        </SparkMax>
+		</SparkMax>
 
         <!-- Region for Servo PWM Items -->
 		<Servo>
@@ -58,6 +56,7 @@
         <!-- Region for DoubleSolenoids -->
         <DoubleSolenoid>
             <!--[Name] [int]fChannel [int]rChannel [bool]reversed [string = forward/reverse]default [bool]Print -->
+            <IntakePistion fChannel = "1" rChannel = "2" reversed = "false" default = "reverse" />
 		</DoubleSolenoid>
 
         <!-- Region for DigitalInputs -->
@@ -72,13 +71,6 @@
 
         <!--SwerveManager [bool]Print [string]name [bool]wait [string list]modules [double]Max [double]length [double]width [double]WheelDiameter [double]Scale-->
         <SwerveManager/>
-
-        <!--Region for Motor Link settings-->
-        <MotorLinks>
-            <!--[Name] [string]Motor [string]ChildMotor [double]Bias-->
-            
-
-        </MotorLinks>
 
         <!--Region for PID settings-->
         <Profiles>
@@ -95,11 +87,6 @@
             <!--[Name] [string]Motor ([string]Profile/[int]ProfileIndex)-->
         </PositionLinks>
 
-        <!--Region for PID in the ActiveCollection settings-->
-        <CollectionLinks>
-            <!--[Name] ([string]Profile/[int]ProfileIndex)-->
-        </CollectionLinks>
-
         <!--Region for Encoder-Motor link settings-->
         <EncoderLinks>
             <!--[Name] [string]Motor [string]Encoder-->
@@ -113,16 +100,11 @@
 
             <!--Region for Axis control-->
             <AxisControls>
-            <triggerControl Print = "false" axis = "0" reversed = "false" useOverdrive = "false" deadZone = "0.01" powerMultiplier = "1" mode = "0" isLift = "false" bindings = "" bindEvent = "false"/>
-            <joystickControl Print = "false" axis = "2" reversed = "false" useOverdrive = "false" deadZone = "0.01" powerMultiplier = "1" mode = "0" isLift = "false" bindings = "" bindEvent = "false"/>
-             
                 <!--[Name] [bool]Print [int]axis [bool]reversed [bool]useOverdrive [double]deadZone [double]powerMultiplier [int]mode [bool]isLift [string list]bindings [bool]bindEvent-->
-               
-            </AxisControls>
+		    </AxisControls>
 
             <!--Region for Button control-->
             <ButtonControls>
-            <buttonControl Print = "false" button = "1" reversed = "false" actOnRelease = "true" isSolenoid = "false" powerMultiplier = "1" isOverdrive = "false" mode = "0" Hold = "0" bindings = "" bindEvent = "false"/>
                 <!--[Name] [bool]Print [int]button [bool]reversed [bool]actOnRelease [bool]isSolenoid [double]powerMultiplier [bool]isOverdrive [int]Mode [double]Hold [string list]bindings [bool]bindEvent-->
             </ButtonControls>
 
@@ -162,7 +144,6 @@
             
             <!-- Region for combo controls -->
             <ComboControls>
-                <TestControl Print = "true" ControlInput = "&joystickControl _buttonControl triggerControl" InputValues = ">0.5 1 >0.75" RobotInput = "" RobotValues = "" UseInput = "1" isGoal = "false" Goal = "" ID = "" StartIndex = "0" Repeat = "false" StringData = "" RemoveKeys = "" Mode = "0" FireOnce = "false" bindings = "" bindEvent = "false"/>
                 <!--[Name] [bool]Print [string list]ControlInput [double list]InputValues [string list]RobotInput [double list]RobotValues [string list]UseInput [bool]isGoal [string]Goal [int]ID [int]StartIndex [bool]Repeat [string list]StringData [int list]RemoveKeys [int]Mode [bool]FireOnce [string list]bindings [bool]bindEvent -->
             </ComboControls>
         </Driver>

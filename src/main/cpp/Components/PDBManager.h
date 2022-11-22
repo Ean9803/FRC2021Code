@@ -30,14 +30,17 @@ namespace Components
             double PDBCurentThres = 0;
             double Lower = 0;
             bool Run = true;
+            //list of lists of motors with the motors in the same group being in the same list
             std::vector<std::vector<Motor*>> MotorGroups;
             PowerDistributionPanel PDB{0};
 
 		public:
 			
 			PDBManager(){}
+            //Constructor used in config
             PDBManager(double TimeOut, double CurrentThres, double LowerAmount, bool run){ Timeout = TimeOut; PDBCurentThres = CurrentThres; Lower = LowerAmount; Run = run; }
 
+            //Add motor to a motor group in the first list of list of motors
             void SetMotorGroup (Motor *MotorPtr, int Group)
             {
                 if (Group < MotorGroups.size() && Group >= 0)
@@ -56,6 +59,7 @@ namespace Components
                 }
             }
 
+            //Method to go through each group and take the average current and from there determine if it needs to be lowered or not
             void UpdatePDB()
             {
                 if (PDB.GetTotalCurrent() > PDBCurentThres)
@@ -88,6 +92,9 @@ namespace Components
                 }
             }
 
+            /*
+            The delete component is just a way to clean up space (it was used for quickload so we dont get dups of objects)
+            */
             virtual void DeleteComponent() {delete this;};
 
 			virtual ~PDBManager(){}

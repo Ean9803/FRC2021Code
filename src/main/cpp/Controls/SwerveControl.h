@@ -58,6 +58,8 @@ namespace Controls
             double Mult;
             double DeadZone = 0;
             bool Reversed;
+
+            bool StopM = false;
 	};
 }
 

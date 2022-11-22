@@ -7,7 +7,7 @@ Copyright (c) BroncBotz.
 All rights reserved.
 
 Author(s):	Dylan Watson, Ian Poll
-Email:	dylantrwatson@gmail.com, irobbot983@gmail.com
+Email:	dylantrwatson@gmail.com, irobbot9803@gmail.com
 \*********************************************************************/
 
 #ifndef SRC_CONTROLS_TOGGLEBUTTONCONTROL_H_
@@ -27,13 +27,14 @@ namespace Controls
 		private:
 			int button;
 
-			bool previousState;
+			bool previousState = false;
 			bool toggleOn = false;
 			double current;
+			double NegativeValue;
 
 		public:
 			ToggleButtonControl();
-			ToggleButtonControl(Joystick *_joy, string _name, int _button, bool _IsReversed, double _powerMultiplier, ActiveCollection* ac);
+			ToggleButtonControl(Joystick *_joy, string _name, int _button, bool _IsReversed, double _powerMultiplier, double _negative, ActiveCollection* ac);
 			virtual ~ToggleButtonControl();
 			virtual double Update(double _dTime) override;
 	};

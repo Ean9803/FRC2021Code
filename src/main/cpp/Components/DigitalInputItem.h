@@ -22,6 +22,8 @@ namespace Components
     {
         private:
 	        DigitalInput *din;
+			
+			//channel the switch is plugged into
 	        int channel;
 
         public:
